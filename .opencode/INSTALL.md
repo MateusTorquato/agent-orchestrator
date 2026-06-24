@@ -17,3 +17,5 @@ If installed from a local checkout during development, point OpenCode at the pac
   "plugin": ["/path/to/agent-orchestrator"]
 }
 ```
+
+See `docs/README.opencode.md` for the complete OpenCode notes.

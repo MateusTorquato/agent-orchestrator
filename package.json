@@ -1,0 +1,41 @@
+{
+  "name": "agent-orchestrator",
+  "version": "0.1.0",
+  "description": "Skills and runtime bootstrap for routing work across AI harnesses, models, and swarms.",
+  "type": "module",
+  "main": ".opencode/plugins/agent-orchestrator.js",
+  "license": "MIT",
+  "author": {
+    "name": "Mateus Torquato",
+    "url": "https://github.com/MateusTorquato"
+  },
+  "homepage": "https://github.com/MateusTorquato/agent-orchestrator",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MateusTorquato/agent-orchestrator.git"
+  },
+  "keywords": [
+    "pi-package",
+    "skills",
+    "orchestration",
+    "delegation",
+    "swarm",
+    "subagents",
+    "models",
+    "routing",
+    "coding-agents"
+  ],
+  "scripts": {
+    "detect": "node skills/orchestrator-init/scripts/detect-environment.mjs",
+    "test": "node tests/run-tests.mjs",
+    "skills:list": "npx skills add . --list"
+  },
+  "pi": {
+    "extensions": [
+      "./.pi/extensions/agent-orchestrator.ts"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  }
+}

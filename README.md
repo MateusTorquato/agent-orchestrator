@@ -21,9 +21,17 @@ Local development phase. Do not publish yet.
 - [Decisions](docs/decisions.md)
 - [Config Schema](docs/config-schema.md)
 
-## Planned Install Shape
+## Harness Notes
 
-The package will follow a Superpowers-style multi-harness structure:
+- [Codex](docs/README.codex.md)
+- [Claude Code](docs/README.claude.md)
+- [Gemini](docs/README.gemini.md)
+- [Kimi Code](docs/README.kimi.md)
+- [OpenCode](docs/README.opencode.md)
+
+## Install Shape
+
+The package follows a Superpowers-style multi-harness structure:
 
 ```text
 skills/
@@ -50,7 +58,7 @@ gemini-extension.json
 GEMINI.md
 ```
 
-`npx skills` installation and harness-specific plugin installs will be validated after the design docs are reviewed.
+`npx skills` installation and harness-specific plugin installs are validated locally before publication.
 
 ## Local Validation
 
