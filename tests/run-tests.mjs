@@ -121,6 +121,19 @@ run("install commands dry run does not write", () => {
   assert.equal(fs.existsSync(target), false);
 });
 
+run("compare results writes comparison", () => {
+  const runDir = path.join(tmp, "compare-run");
+  const outputsDir = path.join(runDir, "outputs");
+  fs.mkdirSync(outputsDir, { recursive: true });
+  fs.writeFileSync(path.join(outputsDir, "route-a.md"), "Implemented fix. Tests passed. Evidence: commit abc.");
+  fs.writeFileSync(path.join(outputsDir, "route-b.md"), "Some concerns. Tests failed. Risk: regression.");
+  const result = nodeScript("skills/orchestrator-swarm/scripts/compare-results.mjs", ["--run-dir", runDir, "--mode", "worktree_competition"], env);
+  assert.equal(result.status, 0, result.stderr);
+  const comparison = fs.readFileSync(path.join(runDir, "comparison.md"), "utf8");
+  assert.match(comparison, /Recommended route: route-a/);
+  assert.match(comparison, /Do not apply/);
+});
+
 console.log("All tests passed");
 
 function run(name, fn) {

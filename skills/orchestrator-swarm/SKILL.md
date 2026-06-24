@@ -82,6 +82,12 @@ Use independent reviewers to evaluate a plan, diff, result, or decision. Prefer 
 9. Write `comparison.md`.
 10. Ask before applying any winning implementation.
 
+When outputs are saved in the run directory, the controller may use:
+
+```bash
+node skills/orchestrator-swarm/scripts/compare-results.mjs --run-dir .orchestrator/runs/<run-id> --mode <mode>
+```
+
 ## Scorecards
 
 Use mode-specific scorecards:
