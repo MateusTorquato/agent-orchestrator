@@ -74,6 +74,12 @@ Run script tests:
 node tests/run-tests.mjs
 ```
 
+Run the full release verification suite:
+
+```bash
+npm run release:verify
+```
+
 Run passive environment detection against your real machine:
 
 ```bash
@@ -108,4 +114,13 @@ Install Claude slash commands only after review:
 
 ```bash
 node skills/orchestrator-init/scripts/install-commands.mjs --write
+```
+
+## Publishing
+
+Do not publish until the local release verification passes and the maintainer confirms the remote action.
+
+```bash
+npm run release:verify
+gh repo create MateusTorquato/agent-orchestrator --public --source=. --remote=origin --push
 ```

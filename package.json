@@ -36,6 +36,7 @@
     "docs",
     "evals",
     "hooks",
+    "scripts",
     "skills",
     "GEMINI.md",
     "gemini-extension.json",
@@ -45,7 +46,8 @@
   "scripts": {
     "detect": "node skills/orchestrator-init/scripts/detect-environment.mjs",
     "test": "node tests/run-tests.mjs",
-    "skills:list": "npx skills add . --list"
+    "skills:list": "npx skills add . --list",
+    "release:verify": "node scripts/verify-release.mjs"
   },
   "pi": {
     "extensions": [
