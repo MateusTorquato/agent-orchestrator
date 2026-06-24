@@ -1,0 +1,9 @@
+{
+  "name": "agent-orchestrator",
+  "display_name": "Agent Orchestrator",
+  "description": "Delegate and swarm tasks across AI harnesses and models.",
+  "version": "0.1.0",
+  "author": "Mateus Torquato",
+  "repository": "https://github.com/MateusTorquato/agent-orchestrator",
+  "license": "MIT"
+}

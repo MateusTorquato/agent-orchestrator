@@ -1,0 +1,240 @@
+#!/usr/bin/env node
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+const DEFAULT_CONFIG = path.join(os.homedir(), ".config", "ai-orchestrator", "config.yaml");
+const args = parseArgs(process.argv.slice(2));
+const configPath = expandPath(args.config || DEFAULT_CONFIG);
+const task = args.task || args.explain || process.argv.slice(2).filter((arg) => !arg.startsWith("--")).join(" ");
+
+if (!fs.existsSync(configPath)) {
+  console.error(`Orchestrator is not initialized. Missing config: ${configPath}`);
+  console.error("Run /orchestrator:init first.");
+  process.exit(2);
+}
+
+const config = readConfig(configPath);
+const classification = classifyTask(task);
+const routes = collectRoutes(config).filter((route) => route.enabled !== false);
+
+if (!routes.length) {
+  console.error("No enabled routes found in config. Run /orchestrator:config or /orchestrator:init.");
+  process.exit(3);
+}
+
+const ranked = routes
+  .map((route) => ({ route, score: scoreRoute(route, classification), reasons: routeReasons(route, classification) }))
+  .sort((a, b) => b.score - a.score);
+
+const selected = ranked[0];
+const confirmationRequired = needsConfirmation(selected.route, classification, config);
+
+const plan = {
+  task,
+  classification,
+  selected_route: selected.route.id,
+  score: selected.score,
+  reasons: selected.reasons,
+  confirmation_required: confirmationRequired,
+  prompt: buildPrompt(task, selected.route, classification),
+  alternatives: ranked.slice(1, 4).map((item) => ({
+    route: item.route.id,
+    score: item.score,
+    reasons: item.reasons,
+  })),
+};
+
+if (args.json) {
+  process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
+} else {
+  console.log("Delegation Plan");
+  console.log(`Task: ${task || "(not provided)"}`);
+  console.log(`Selected route: ${plan.selected_route}`);
+  console.log(`Why: ${plan.reasons.join("; ") || "best available configured route"}`);
+  console.log(`Confirmation required: ${plan.confirmation_required ? "yes" : "no"}`);
+  console.log("\nPrompt:");
+  console.log(plan.prompt);
+}
+
+function classifyTask(text) {
+  const lower = String(text || "").toLowerCase();
+  const sensitive = /secret|credential|token|api key|customer|client|user data|pii|production|logs|financial|contract|legal|health|hr|segredo|credencial|senha|cliente|produção|dados pessoais|financeiro|contrato/.test(lower);
+  const multimodal = /pdf|image|screenshot|audio|video|ocr|scan|table|spreadsheet|imagem|áudio|vídeo|tabela/.test(lower);
+  const coding = /code|repo|bug|test|refactor|implement|typescript|python|api|commit|diff|código|bug|teste|refator/.test(lower);
+  const review = /review|validate|audit|security|pr|diff|revis|auditoria|segurança/.test(lower);
+  const research = /research|source|compare|market|paper|latest|pesquis|fonte|compar/.test(lower);
+  const fileEdits = /edit|change|fix|implement|refactor|write|modify|alter|corrigir|implementar|editar|alterar/.test(lower) && coding;
+  const premiumIntent = /best|highest quality|don't economize|premium|melhor|não economize/.test(lower);
+  const cheapIntent = /cheap|fast|low cost|barato|rápido|econom/.test(lower);
+  return {
+    type: coding ? (review ? "code_review" : "coding") : research ? "research" : multimodal ? "document_analysis" : "general",
+    sensitive,
+    multimodal,
+    coding,
+    review,
+    research,
+    file_edits: fileEdits,
+    profile_hint: premiumIntent ? "best" : cheapIntent ? "cheap" : "balanced",
+  };
+}
+
+function scoreRoute(route, classification) {
+  let score = 0;
+  const strengths = new Set(route.strengths || []);
+  if (classification.coding && (strengths.has("coding") || strengths.has("debugging") || route.capabilities?.file_edits)) score += 30;
+  if (classification.review && (strengths.has("validation") || strengths.has("code_review") || strengths.has("planning"))) score += 25;
+  if (classification.research && (strengths.has("research") || strengths.has("planning") || route.capabilities?.web === true)) score += 20;
+  if (classification.multimodal && (strengths.has("multimodal") || strengths.has("document_analysis") || route.capabilities?.multimodal === true)) score += 30;
+  if (classification.sensitive && (route.cost_tier === "local" || strengths.has("private_context") || strengths.has("local_work"))) score += 40;
+  if (classification.sensitive && route.cost_tier !== "local") score -= 25;
+  if (classification.file_edits && route.capabilities?.file_edits === true) score += 25;
+  if (classification.file_edits && route.capabilities?.file_edits === false) score -= 20;
+  if (classification.profile_hint === "cheap" && ["local", "cheap"].includes(route.cost_tier)) score += 15;
+  if (classification.profile_hint === "best" && ["premium", "standard"].includes(route.cost_tier)) score += 15;
+  if (route.enabled) score += 5;
+  return score;
+}
+
+function routeReasons(route, classification) {
+  const reasons = [];
+  if (classification.sensitive && route.cost_tier === "local") reasons.push("local route for sensitive data");
+  if (classification.file_edits && route.capabilities?.file_edits) reasons.push("supports file edits");
+  if (classification.coding && route.strengths?.some((item) => ["coding", "debugging"].includes(item))) reasons.push("matches coding/debugging strengths");
+  if (classification.multimodal && route.strengths?.some((item) => ["multimodal", "document_analysis"].includes(item))) reasons.push("matches multimodal/document strengths");
+  if (route.cost_tier === "cheap") reasons.push("cheap route");
+  if (route.cost_tier === "premium") reasons.push("premium quality route");
+  return reasons;
+}
+
+function needsConfirmation(route, classification) {
+  if (route.cost_tier === "premium") return true;
+  if (classification.sensitive && route.cost_tier !== "local") return true;
+  if (route.execution_mode === "cloud_background") return true;
+  if (classification.file_edits && route.capabilities?.file_edits) return true;
+  return false;
+}
+
+function buildPrompt(taskText, route, classification) {
+  return `You are receiving a task delegated by Agent Orchestrator.
+
+Route: ${route.id}
+Task type: ${classification.type}
+Sensitive data: ${classification.sensitive ? "yes" : "no"}
+
+Task:
+${taskText}
+
+Return:
+- result
+- evidence
+- validation performed
+- risks or blockers`;
+}
+
+function collectRoutes(config) {
+  const routeObjects = [];
+  for (const [id, route] of Object.entries(config.routes || {})) routeObjects.push({ id, ...route });
+  for (const [id, route] of Object.entries(config.custom_routes || {})) routeObjects.push({ id, ...route, custom: true });
+  return routeObjects;
+}
+
+function readConfig(filePath) {
+  const text = fs.readFileSync(filePath, "utf8");
+  if (filePath.endsWith(".json")) return JSON.parse(text);
+  return parseSimpleYaml(text);
+}
+
+function parseArgs(argv) {
+  const out = {};
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (!arg.startsWith("--")) continue;
+    const key = arg.slice(2);
+    const next = argv[i + 1];
+    if (!next || next.startsWith("--")) out[key] = true;
+    else {
+      out[key] = next;
+      i += 1;
+    }
+  }
+  return out;
+}
+
+function expandPath(value) {
+  if (!value) return value;
+  if (value === "~") return os.homedir();
+  if (value.startsWith("~/")) return path.join(os.homedir(), value.slice(2));
+  return path.resolve(value);
+}
+
+function parseSimpleYaml(text) {
+  const root = {};
+  const stack = [{ indent: -1, value: root }];
+  const lines = text.split(/\r?\n/);
+  for (const raw of lines) {
+    if (!raw.trim() || raw.trim().startsWith("#")) continue;
+    const indent = raw.match(/^ */)[0].length;
+    const line = raw.trim();
+    while (stack.length > 1 && indent <= stack[stack.length - 1].indent) stack.pop();
+    const parent = stack[stack.length - 1].value;
+    if (line.startsWith("- ")) {
+      if (!Array.isArray(parent)) continue;
+      parent.push(parseScalar(line.slice(2).trim()));
+      continue;
+    }
+    const idx = findKeySeparator(line);
+    if (idx === -1) continue;
+    const key = unquote(line.slice(0, idx).trim());
+    const rest = line.slice(idx + 1).trim();
+    if (!rest) {
+      const nextLine = nextMeaningfulLine(lines, raw);
+      const value = nextLine?.trim().startsWith("- ") ? [] : {};
+      parent[key] = value;
+      stack.push({ indent, value });
+    } else {
+      parent[key] = parseScalar(rest);
+    }
+  }
+  return root;
+}
+
+function nextMeaningfulLine(lines, currentRaw) {
+  const index = lines.indexOf(currentRaw);
+  for (let i = index + 1; i < lines.length; i += 1) {
+    if (lines[i].trim() && !lines[i].trim().startsWith("#")) return lines[i];
+  }
+  return null;
+}
+
+function parseScalar(value) {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  if (value === "null") return null;
+  if (value === "[]") return [];
+  if (value === "{}") return {};
+  return unquote(value);
+}
+
+function unquote(value) {
+  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value.slice(1, -1);
+    }
+  }
+  return value;
+}
+
+function findKeySeparator(line) {
+  let quote = null;
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    if ((char === '"' || char === "'") && line[i - 1] !== "\\") {
+      quote = quote === char ? null : quote || char;
+    }
+    if (char === ":" && !quote) return i;
+  }
+  return -1;
+}

@@ -1,0 +1,43 @@
+{
+  "name": "agent-orchestrator",
+  "version": "0.1.0",
+  "description": "Route work across AI models, CLI harnesses, local models, and multi-agent swarms.",
+  "author": {
+    "name": "Mateus Torquato",
+    "url": "https://github.com/MateusTorquato"
+  },
+  "homepage": "https://github.com/MateusTorquato/agent-orchestrator",
+  "repository": "https://github.com/MateusTorquato/agent-orchestrator",
+  "license": "MIT",
+  "keywords": [
+    "orchestration",
+    "delegation",
+    "swarm",
+    "skills",
+    "subagents",
+    "models",
+    "routing"
+  ],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks-codex.json",
+  "interface": {
+    "displayName": "Agent Orchestrator",
+    "shortDescription": "Delegate and swarm tasks across AI harnesses and models",
+    "longDescription": "Agent Orchestrator detects configured AI harnesses and local models, then routes tasks through delegate and swarm workflows with cost, privacy, and capability policies.",
+    "developerName": "Mateus Torquato",
+    "category": "Coding",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Set up Agent Orchestrator for this machine.",
+      "Use a swarm to validate this plan.",
+      "Delegate this task to the best available route."
+    ],
+    "websiteURL": "https://github.com/MateusTorquato/agent-orchestrator",
+    "brandColor": "#2563EB",
+    "screenshots": []
+  }
+}

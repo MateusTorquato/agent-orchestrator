@@ -1,0 +1,6 @@
+{
+  "name": "agent-orchestrator",
+  "description": "Agent orchestration skills for delegation, swarms, and model routing.",
+  "version": "0.1.0",
+  "contextFileName": "GEMINI.md"
+}

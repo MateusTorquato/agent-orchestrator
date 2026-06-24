@@ -1,0 +1,19 @@
+{
+  "name": "agent-orchestrator",
+  "description": "Skills for delegating and swarming work across AI harnesses and models",
+  "version": "0.1.0",
+  "author": {
+    "name": "Mateus Torquato",
+    "url": "https://github.com/MateusTorquato"
+  },
+  "homepage": "https://github.com/MateusTorquato/agent-orchestrator",
+  "repository": "https://github.com/MateusTorquato/agent-orchestrator",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "orchestration",
+    "delegation",
+    "swarm",
+    "models"
+  ]
+}

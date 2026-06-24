@@ -13,7 +13,7 @@ The repository is intentionally English-only. Skills may recognize user intent i
 
 ## Status
 
-Design phase. Do not install or publish yet.
+Local development phase. Do not publish yet.
 
 ## Design Docs
 
@@ -43,3 +43,41 @@ GEMINI.md
 ```
 
 `npx skills` installation and harness-specific plugin installs will be validated after the design docs are reviewed.
+
+## Local Validation
+
+List skills from the local checkout:
+
+```bash
+npx skills add ./agent-orchestrator --list
+```
+
+Run script tests:
+
+```bash
+node tests/run-tests.mjs
+```
+
+Run passive environment detection against your real machine:
+
+```bash
+node skills/orchestrator-init/scripts/detect-environment.mjs
+```
+
+Generate a proposed config from the inventory without writing it:
+
+```bash
+node skills/orchestrator-init/scripts/write-config.mjs
+```
+
+Write config only after reviewing the proposed output:
+
+```bash
+node skills/orchestrator-init/scripts/write-config.mjs --write
+```
+
+Smoke tests may consume model credits and require explicit confirmation:
+
+```bash
+node skills/orchestrator-init/scripts/smoke-test.mjs --confirmed --write
+```

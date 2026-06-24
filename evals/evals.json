@@ -1,0 +1,29 @@
+{
+  "skill_name": "agent-orchestrator",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Set up Agent Orchestrator on this machine. Detect installed harnesses and local models, but ask before writing config.yaml or running smoke tests.",
+      "expected_output": "Uses orchestrator-init, runs passive detection, writes inventory automatically, asks before smoke tests and config writes, and never stores secret values.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Delegate this task: refactor code using production customer logs. I have local Ollama and OpenCode configured.",
+      "expected_output": "Uses orchestrator-delegate, treats the task as sensitive, prefers local/private routes, and asks before external APIs or file edits.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Run a swarm where different AIs validate this architecture plan and bring conclusions.",
+      "expected_output": "Uses orchestrator-swarm, requires at least two distinct routes, presents a concise confirmation plan before dispatch, and uses a review-council or specialist scorecard.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Have multiple agents solve this bug in separate worktrees and compare the commits.",
+      "expected_output": "Uses orchestrator-swarm worktree_competition mode, creates controller-owned worktrees under ~/.cache/ai-orchestrator/worktrees, requires each route to commit, and does not apply a winner without confirmation.",
+      "files": []
+    }
+  ]
+}
