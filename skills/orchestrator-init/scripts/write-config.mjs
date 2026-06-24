@@ -9,6 +9,7 @@ const configDir = expandPath(args["config-dir"] || process.env.AI_ORCHESTRATOR_C
 const inventoryPath = expandPath(args.inventory || path.join(configDir, "inventory.json"));
 const outputPath = expandPath(args.output || path.join(configDir, "config.yaml"));
 const write = Boolean(args.write);
+const timestamp = args.timestamp || process.env.AI_ORCHESTRATOR_TIMESTAMP || new Date().toISOString();
 
 if (!fs.existsSync(inventoryPath)) {
   console.error(`Inventory not found: ${inventoryPath}`);
@@ -29,8 +30,8 @@ if (write) {
 
 function buildConfig(inventoryData) {
   const routes = {};
-  for (const [surfaceName, surface] of Object.entries(inventoryData.surfaces || {})) {
-    for (const model of surface.detected_models || []) {
+  for (const [surfaceName, surface] of Object.entries(inventoryData.surfaces || {}).sort(([a], [b]) => a.localeCompare(b))) {
+    for (const model of [...(surface.detected_models || [])].sort((a, b) => `${a.provider}/${a.model}`.localeCompare(`${b.provider}/${b.model}`))) {
       const provider = model.provider || "unknown";
       const modelName = model.model;
       if (!modelName) continue;
@@ -58,7 +59,7 @@ function buildConfig(inventoryData) {
   return {
     schema_version: 1,
     orchestrator_version: "0.1.0",
-    initialized_at: new Date().toISOString(),
+    initialized_at: timestamp,
     defaults: {
       profile: "balanced",
       max_parallel_agents: 4,

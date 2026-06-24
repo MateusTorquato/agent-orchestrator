@@ -60,9 +60,10 @@ const env = {
 };
 
 run("detect environment", () => {
-  const result = nodeScript("skills/orchestrator-init/scripts/detect-environment.mjs", ["--home", fakeHome, "--config-dir", configDir, "--path", env.PATH, "--json"], env);
+  const result = nodeScript("skills/orchestrator-init/scripts/detect-environment.mjs", ["--home", fakeHome, "--config-dir", configDir, "--path", env.PATH, "--timestamp", "2026-01-01T00:00:00.000Z", "--json"], env);
   assert.equal(result.status, 0, result.stderr);
   const inventory = JSON.parse(result.stdout);
+  assert.equal(inventory.detected_at, "2026-01-01T00:00:00.000Z");
   assert.equal(inventory.tools.codex.installed, true);
   assert.equal(inventory.tools.opencode.installed, true);
   assert.equal(inventory.tools.ollama.installed, true);
@@ -73,9 +74,10 @@ run("detect environment", () => {
 });
 
 run("write config dry run", () => {
-  const result = nodeScript("skills/orchestrator-init/scripts/write-config.mjs", ["--config-dir", configDir], env);
+  const result = nodeScript("skills/orchestrator-init/scripts/write-config.mjs", ["--config-dir", configDir, "--timestamp", "2026-01-01T00:00:00.000Z"], env);
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /schema_version: 1/);
+  assert.match(result.stdout, /initialized_at: "2026-01-01T00:00:00.000Z"/);
   assert.match(result.stdout, /"ollama\/local\/qwen3-coder:latest":/);
   assert.match(result.stdout, /enabled: false/);
   fs.writeFileSync(path.join(configDir, "config.yaml"), enableRoutes(result.stdout, ["opencode/openai/gpt-5.5", "ollama/local/qwen3-coder:latest"]));
@@ -87,6 +89,14 @@ run("delegate chooses local route for sensitive coding", () => {
   const plan = JSON.parse(result.stdout);
   assert.match(plan.selected_route, /ollama\/local\/qwen3-coder/);
   assert.equal(plan.classification.sensitive, true);
+});
+
+run("delegate positional parsing ignores option values", () => {
+  const result = nodeScript("skills/orchestrator-delegate/scripts/route-task.mjs", ["--config", path.join(configDir, "config.yaml"), "--json", "Fix customer PII bug locally"], env);
+  assert.equal(result.status, 0, result.stderr);
+  const plan = JSON.parse(result.stdout);
+  assert.equal(plan.task, "Fix customer PII bug locally");
+  assert.doesNotMatch(plan.task, /config\.yaml/);
 });
 
 run("swarm refuses one enabled route", () => {
@@ -103,6 +113,13 @@ run("swarm plans with two distinct routes", () => {
   const plan = JSON.parse(result.stdout);
   assert.equal(plan.confirmation_required, true);
   assert.ok(plan.routes.length >= 2);
+});
+
+run("swarm positional parsing ignores option values", () => {
+  const result = nodeScript("skills/orchestrator-swarm/scripts/plan-swarm.mjs", ["--config", path.join(configDir, "config.yaml"), "--json", "Validate this plan"], env);
+  assert.equal(result.status, 0, result.stderr);
+  const plan = JSON.parse(result.stdout);
+  assert.equal(plan.task, "Validate this plan");
 });
 
 run("create run directory", () => {
@@ -134,6 +151,39 @@ run("compare results writes comparison", () => {
   assert.match(comparison, /Do not apply/);
 });
 
+run("create worktrees refuses dirty checkout", () => {
+  const repo = path.join(tmp, "dirty-repo");
+  fs.mkdirSync(repo, { recursive: true });
+  git(repo, ["init"]);
+  fs.writeFileSync(path.join(repo, "README.md"), "clean\n");
+  git(repo, ["add", "README.md"]);
+  git(repo, ["-c", "user.email=test@example.com", "-c", "user.name=Test", "commit", "-m", "init"]);
+  fs.writeFileSync(path.join(repo, "dirty.txt"), "dirty\n");
+  const result = nodeScript("skills/orchestrator-swarm/scripts/create-worktrees.mjs", ["--run-id", "test-run", "--routes", "route-a,route-b", "--root", path.join(tmp, "worktrees")], env, repo);
+  assert.equal(result.status, 4);
+  assert.match(result.stderr, /dirty checkout/i);
+});
+
+run("create worktrees is dry-run by default and requires two routes", () => {
+  const repo = path.join(tmp, "clean-repo");
+  fs.mkdirSync(repo, { recursive: true });
+  git(repo, ["init"]);
+  fs.writeFileSync(path.join(repo, "README.md"), "clean\n");
+  git(repo, ["add", "README.md"]);
+  git(repo, ["-c", "user.email=test@example.com", "-c", "user.name=Test", "commit", "-m", "init"]);
+
+  const oneRoute = nodeScript("skills/orchestrator-swarm/scripts/create-worktrees.mjs", ["--run-id", "test-run", "--routes", "route-a", "--root", path.join(tmp, "worktrees")], env, repo);
+  assert.equal(oneRoute.status, 3);
+  assert.match(oneRoute.stderr, /at least two/i);
+
+  const dryRun = nodeScript("skills/orchestrator-swarm/scripts/create-worktrees.mjs", ["--run-id", "test-run", "--routes", "route-a,route-b", "--root", path.join(tmp, "worktrees")], env, repo);
+  assert.equal(dryRun.status, 0, dryRun.stderr);
+  const parsed = JSON.parse(dryRun.stdout);
+  assert.equal(parsed.dry_run, true);
+  assert.equal(parsed.worktrees.length, 2);
+  assert.equal(fs.existsSync(parsed.baseDir), false);
+});
+
 console.log("All tests passed");
 
 function run(name, fn) {
@@ -152,11 +202,18 @@ function writeExecutable(name, content) {
   fs.chmodSync(filePath, 0o755);
 }
 
-function nodeScript(relativePath, args, runEnv) {
+function nodeScript(relativePath, args, runEnv, cwd = repoRoot) {
   return spawnSync(process.execPath, [path.join(repoRoot, relativePath), ...args], {
     encoding: "utf8",
     env: runEnv,
+    cwd,
   });
+}
+
+function git(cwd, args) {
+  const result = spawnSync("git", args, { cwd, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  return result;
 }
 
 function enableRoutes(yaml, routeIds) {

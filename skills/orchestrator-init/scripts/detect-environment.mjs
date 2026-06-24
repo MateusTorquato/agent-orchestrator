@@ -10,6 +10,7 @@ const configDir = expandPath(args["config-dir"] || process.env.AI_ORCHESTRATOR_C
 const outputPath = expandPath(args.output || path.join(configDir, "inventory.json"));
 const homeDir = expandPath(args.home || os.homedir());
 const pathEnv = args.path || process.env.PATH || "";
+const timestamp = args.timestamp || process.env.AI_ORCHESTRATOR_TIMESTAMP || new Date().toISOString();
 
 const TOOL_DETECTORS = [
   { id: "claude", command: "claude", surface: "claude_code" },
@@ -46,7 +47,7 @@ const CONFIG_CANDIDATES = [
 
 const inventory = {
   schema_version: 1,
-  detected_at: new Date().toISOString(),
+  detected_at: timestamp,
   tools: {},
   surfaces: {},
   redactions: {
@@ -97,7 +98,7 @@ for (const candidate of CONFIG_CANDIDATES) {
       inventory.redactions.secrets_found += parsed.redactions.secrets_found;
       inventory.redactions.redacted_fields.push(...parsed.redactions.redacted_fields.map((field) => `${rel}:${field}`));
     }
-    const models = extractModels(parsed.value, parsed.text);
+    const models = extractModels(parsed.value, parsed.text).sort((a, b) => `${a.provider}/${a.model}`.localeCompare(`${b.provider}/${b.model}`));
     for (const model of models) {
       surface.detected_models.push({
         provider: model.provider || inferProvider(model.model || model.name || ""),
@@ -115,7 +116,7 @@ if (inventory.tools.ollama?.installed) {
   surface.detected_models = surface.detected_models || [];
   surface.ollama_list_ok = ollama.status === 0;
   if (ollama.status === 0) {
-    for (const modelName of parseOllamaList(ollama.stdout)) {
+    for (const modelName of parseOllamaList(ollama.stdout).sort()) {
       surface.detected_models.push({
         provider: "local",
         model: modelName,
@@ -130,6 +131,13 @@ for (const [toolId, tool] of Object.entries(inventory.tools)) {
   const surface = TOOL_DETECTORS.find((item) => item.id === toolId)?.surface;
   if (!surface) continue;
   tool.config_files = inventory.surfaces[surface]?.config_files || [];
+}
+
+for (const surface of Object.values(inventory.surfaces)) {
+  if (surface.config_files) surface.config_files.sort();
+  if (surface.detected_models) {
+    surface.detected_models.sort((a, b) => `${a.provider}/${a.model}/${a.source}`.localeCompare(`${b.provider}/${b.model}/${b.source}`));
+  }
 }
 
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });

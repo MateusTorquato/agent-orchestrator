@@ -6,7 +6,7 @@ import path from "node:path";
 const DEFAULT_CONFIG = path.join(os.homedir(), ".config", "ai-orchestrator", "config.yaml");
 const args = parseArgs(process.argv.slice(2));
 const configPath = expandPath(args.config || DEFAULT_CONFIG);
-const task = args.task || args.explain || process.argv.slice(2).filter((arg) => !arg.startsWith("--")).join(" ");
+const task = args.task || args.explain || args._.join(" ");
 
 if (!fs.existsSync(configPath)) {
   console.error(`Orchestrator is not initialized. Missing config: ${configPath}`);
@@ -146,11 +146,19 @@ function readConfig(filePath) {
 }
 
 function parseArgs(argv) {
-  const out = {};
+  const out = { _: [] };
+  const booleanFlags = new Set(["json"]);
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
-    if (!arg.startsWith("--")) continue;
+    if (!arg.startsWith("--")) {
+      out._.push(arg);
+      continue;
+    }
     const key = arg.slice(2);
+    if (booleanFlags.has(key)) {
+      out[key] = true;
+      continue;
+    }
     const next = argv[i + 1];
     if (!next || next.startsWith("--")) out[key] = true;
     else {
