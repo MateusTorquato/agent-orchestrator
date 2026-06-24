@@ -67,8 +67,10 @@ function classifyTask(text) {
   const fileEdits = /edit|change|fix|implement|refactor|write|modify|alter|corrigir|implementar|editar|alterar/.test(lower) && coding;
   const premiumIntent = /best|highest quality|don't economize|premium|melhor|não economize/.test(lower);
   const cheapIntent = /cheap|fast|low cost|barato|rápido|econom/.test(lower);
+  const openSourceIntent = /open source|open-source|open weight|open-weight|oss|local model|ollama|código aberto|modelo aberto/.test(lower);
   return {
     type: coding ? (review ? "code_review" : "coding") : research ? "research" : multimodal ? "document_analysis" : "general",
+    text: lower,
     sensitive,
     multimodal,
     coding,
@@ -76,12 +78,15 @@ function classifyTask(text) {
     research,
     file_edits: fileEdits,
     profile_hint: premiumIntent ? "best" : cheapIntent ? "cheap" : "balanced",
+    open_source: openSourceIntent,
   };
 }
 
 function scoreRoute(route, classification, config) {
   let score = 0;
   const strengths = new Set(route.strengths || []);
+  const routeHintScore = explicitRouteHintScore(route, classification);
+  score += routeHintScore;
   if (defaultRouteIds(classification, config).includes(route.id)) score += 100;
   if (classification.coding && (strengths.has("coding") || strengths.has("debugging") || route.capabilities?.file_edits)) score += 30;
   if (classification.review && (strengths.has("validation") || strengths.has("code_review") || strengths.has("planning"))) score += 25;
@@ -91,14 +96,18 @@ function scoreRoute(route, classification, config) {
   if (classification.sensitive && route.cost_tier !== "local") score -= 25;
   if (classification.file_edits && route.capabilities?.file_edits === true) score += 25;
   if (classification.file_edits && route.capabilities?.file_edits === false) score -= 20;
-  if (classification.profile_hint === "cheap" && ["local", "cheap"].includes(route.cost_tier)) score += 15;
+  if (classification.profile_hint === "cheap" && ["local", "cheap"].includes(route.cost_tier)) score += 120;
+  if (classification.profile_hint === "cheap" && route.cost_tier === "premium") score -= 40;
   if (classification.profile_hint === "best" && ["premium", "standard"].includes(route.cost_tier)) score += 15;
+  if (classification.open_source && isOpenWeightRoute(route)) score += 100;
+  if (classification.open_source && !isOpenWeightRoute(route)) score -= 25;
   if (route.enabled) score += 5;
   return score;
 }
 
 function routeReasons(route, classification, config) {
   const reasons = [];
+  if (explicitRouteHintScore(route, classification) > 0) reasons.push("explicitly requested route/model/provider");
   if (defaultRouteIds(classification, config).includes(route.id)) reasons.push("configured default for this task type");
   if (classification.sensitive && route.cost_tier === "local") reasons.push("local route for sensitive data");
   if (classification.file_edits && route.capabilities?.file_edits) reasons.push("supports file edits");
@@ -106,7 +115,44 @@ function routeReasons(route, classification, config) {
   if (classification.multimodal && route.strengths?.some((item) => ["multimodal", "document_analysis"].includes(item))) reasons.push("matches multimodal/document strengths");
   if (route.cost_tier === "cheap") reasons.push("cheap route");
   if (route.cost_tier === "premium") reasons.push("premium quality route");
+  if (classification.open_source && isOpenWeightRoute(route)) reasons.push("matches open-source/open-weight intent");
   return reasons;
+}
+
+function explicitRouteHintScore(route, classification) {
+  const text = classification.text || "";
+  const haystack = [
+    route.id,
+    route.surface,
+    route.provider,
+    route.model,
+    route.display_name,
+  ].filter(Boolean).join(" ").toLowerCase();
+  const hints = [
+    "deepseek",
+    "qwen",
+    "glm",
+    "kimi",
+    "gpt-oss",
+    "minimax",
+    "ministral",
+    "mistral",
+    "gemma",
+    "gemini",
+    "claude",
+    "opus",
+    "sonnet",
+    "codex",
+    "agy",
+    "antigravity",
+    "ollama",
+  ];
+  return hints.some((hint) => text.includes(hint) && haystack.includes(hint)) ? 220 : 0;
+}
+
+function isOpenWeightRoute(route) {
+  const lower = [route.id, route.surface, route.provider, route.model, route.display_name].filter(Boolean).join(" ").toLowerCase();
+  return /ollama|deepseek|qwen|glm|kimi|gpt-oss|minimax|ministral|mistral|gemma|llama/.test(lower);
 }
 
 function defaultRouteIds(classification, config) {

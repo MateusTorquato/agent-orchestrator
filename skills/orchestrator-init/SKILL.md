@@ -26,13 +26,25 @@ This skill creates and maintains:
 
 2. Review detected tools, harnesses, configured models, local models, and redactions.
 
-3. Prefer doing the interview in Plan mode when the current agent/runtime supports selectable questions. After detection, explain that Plan mode is recommended because the user can pick routes and defaults from options instead of typing YAML by hand. Make clear that Plan mode is not required.
+3. Prefer the recommended setup path unless the user asks to customize. The recommended path is: enable detected routes, keep `balanced` cost policy, use the strongest integrated coding route for general/research/investigation/coding/review, use the best detected multimodal route for documents, and ask before paid fan-out or sensitive external use.
+
+4. Prefer doing the interview in Plan mode when the current agent/runtime supports selectable questions and the user wants customization. Explain that Plan mode is useful for picking routes/defaults from options, but it is not required.
 
    If the current session is not in Plan mode, pause before the interview and ask the user to switch to Plan mode if they want the recommended setup experience. Tell them to type `continue` after switching modes, or type `continue in text mode` to proceed with numbered questions in the current chat. Do not block if the user explicitly chooses text mode.
 
-4. Ask the user which detected harness/model routes to enable. When a harness has linked models, list them and ask whether to enable all or selected models.
+5. If the user did not ask to customize, generate a proposed config directly:
+   ```bash
+   node skills/orchestrator-init/scripts/write-config.mjs --dry-run --enable-all --profile balanced
+   ```
+   Add `--route-defaults ...` when clear defaults were already chosen or can be inferred from detected routes.
 
-5. Ask for default routes by task category:
+6. Ask for focused preferences only when they materially change the generated config:
+   - whether to enable all detected routes or a smaller bundle;
+   - default route for document/multimodal tasks when multiple strong choices exist;
+   - what to do when no true local/private model is detected;
+   - whether to run smoke tests.
+
+7. If customization is requested, ask for default routes by task category:
    - generalist
    - research
    - investigation/debugging
@@ -41,12 +53,12 @@ This skill creates and maintains:
    - document/multimodal
    - local/private-sensitive work
 
-6. Ask whether to run smoke tests. Smoke tests may consume model credits, so they require explicit confirmation:
+8. Ask whether to run smoke tests. Smoke tests may consume model credits, so they require explicit confirmation:
    ```bash
    node skills/orchestrator-init/scripts/smoke-test.mjs --confirmed --write
    ```
 
-7. Propose a config:
+9. Propose a config:
    ```bash
    node skills/orchestrator-init/scripts/write-config.mjs --dry-run
    ```
@@ -55,9 +67,9 @@ This skill creates and maintains:
    node skills/orchestrator-init/scripts/write-config.mjs --dry-run --enable-all --profile balanced --route-defaults general=codex/openai/gpt-5.5,document_analysis=agy/google/gemini-3.5-flash-high
    ```
 
-8. Ask before writing `config.yaml` or installing commands/plugins.
+10. Ask before writing `config.yaml` or installing commands/plugins. If the user approves, write `config.yaml` from the proposed output.
 
-9. If the user approves installing Claude slash commands, preview first:
+11. If the user approves installing Claude slash commands, preview first:
    ```bash
    node skills/orchestrator-init/scripts/install-commands.mjs
    ```
@@ -65,6 +77,8 @@ This skill creates and maintains:
    ```bash
    node skills/orchestrator-init/scripts/install-commands.mjs --write
    ```
+
+12. Always finish by listing the exact paths created, updated, proposed, or opened.
 
 ## Detection Rules
 
@@ -81,7 +95,7 @@ Treat harnesses as separate routes even when they expose the same underlying mod
 
 ## User Interview
 
-Ask concise questions. Capture:
+Ask concise questions only when needed. Capture:
 
 - Which routes are enabled.
 - Which linked harness models are allowed.
@@ -100,6 +114,8 @@ Ask concise questions. Capture:
 - What to do when no true local/private model is detected.
 - Whether to install harness commands/plugins.
 - Whether to run smoke tests.
+
+Do not run a long interview by default. If the user wants the recommended setup, produce a proposed config, summarize the defaults, and ask for confirmation to write it. If the user wants to edit later, direct them to `/orchestrator:config`.
 
 ### Plan Mode Interview
 
@@ -121,6 +137,15 @@ Do not ask all questions at once. Use the previous answer to narrow the next opt
 ### Text Mode Continuation
 
 If the user chooses not to switch to Plan mode, continue in normal chat with numbered options. Keep each question small and default to a recommended option first.
+
+### Completion Summary
+
+At the end of every init/config run, report paths such as:
+
+- `~/.config/ai-orchestrator/inventory.json`
+- `~/.config/ai-orchestrator/config.proposed.yaml`
+- `~/.config/ai-orchestrator/config.yaml`
+- installed command/plugin paths, if any
 
 ## Config Editing
 

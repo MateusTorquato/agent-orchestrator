@@ -166,6 +166,27 @@ run("delegate honors configured task defaults", () => {
   assert.ok(researchPlan.reasons.includes("configured default for this task type"));
 });
 
+run("delegate honors explicit model requests", () => {
+  const configPath = path.join(configDir, "explicit-deepseek.yaml");
+  const base = nodeScript("skills/orchestrator-init/scripts/write-config.mjs", ["--config-dir", configDir, "--timestamp", "2026-01-01T00:00:00.000Z"], env);
+  assert.equal(base.status, 0, base.stderr);
+  fs.writeFileSync(configPath, enableRoutes(base.stdout, ["opencode/openai/gpt-5.5", "ollama/local/deepseek-v4-pro:cloud"]));
+
+  const result = nodeScript("skills/orchestrator-delegate/scripts/route-task.mjs", ["--config", configPath, "--task", "Use deepseek to debug this code issue", "--json"], env);
+  assert.equal(result.status, 0, result.stderr);
+  const plan = JSON.parse(result.stdout);
+  assert.match(plan.selected_route, /deepseek/);
+  assert.ok(plan.reasons.includes("explicitly requested route/model/provider"));
+});
+
+run("delegate favors cheap open-weight routes when requested", () => {
+  const result = nodeScript("skills/orchestrator-delegate/scripts/route-task.mjs", ["--config", path.join(configDir, "config.yaml"), "--task", "Debug this bug with a cheap open source model", "--json"], env);
+  assert.equal(result.status, 0, result.stderr);
+  const plan = JSON.parse(result.stdout);
+  assert.match(plan.selected_route, /ollama\/local\/deepseek-v4-pro:cloud|ollama\/local\/deepseek-v4-flash:cloud|ollama\/local\/qwen3-coder:latest/);
+  assert.ok(plan.reasons.includes("matches open-source/open-weight intent"));
+});
+
 run("write config dry-run wins over write", () => {
   const target = path.join(configDir, "dry-run-wins.yaml");
   const result = nodeScript("skills/orchestrator-init/scripts/write-config.mjs", ["--config-dir", configDir, "--output", target, "--write", "--dry-run", "--timestamp", "2026-01-01T00:00:00.000Z"], env);
