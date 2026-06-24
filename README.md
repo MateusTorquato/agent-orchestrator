@@ -32,6 +32,14 @@ skills/
   orchestrator-delegate/
   orchestrator-swarm/
 
+commands/
+  claude/
+    orchestrator.md
+    orchestrator:init.md
+    orchestrator:config.md
+    orchestrator:delegate.md
+    orchestrator:swarm.md
+
 .claude-plugin/
 .codex-plugin/
 .cursor-plugin/
@@ -80,4 +88,16 @@ Smoke tests may consume model credits and require explicit confirmation:
 
 ```bash
 node skills/orchestrator-init/scripts/smoke-test.mjs --confirmed --write
+```
+
+Preview Claude slash command installation:
+
+```bash
+node skills/orchestrator-init/scripts/install-commands.mjs
+```
+
+Install Claude slash commands only after review:
+
+```bash
+node skills/orchestrator-init/scripts/install-commands.mjs --write
 ```

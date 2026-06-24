@@ -40,6 +40,15 @@ This skill creates and maintains:
 
 6. Ask before writing `config.yaml` or installing commands/plugins.
 
+7. If the user approves installing Claude slash commands, preview first:
+   ```bash
+   node skills/orchestrator-init/scripts/install-commands.mjs
+   ```
+   Then write only after confirmation:
+   ```bash
+   node skills/orchestrator-init/scripts/install-commands.mjs --write
+   ```
+
 ## Detection Rules
 
 Detect both:

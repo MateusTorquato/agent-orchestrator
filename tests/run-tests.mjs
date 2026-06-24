@@ -113,6 +113,14 @@ run("create run directory", () => {
   assert.ok(fs.existsSync(path.join(runDir, "prompts")));
 });
 
+run("install commands dry run does not write", () => {
+  const target = path.join(tmp, "claude-commands");
+  const result = nodeScript("skills/orchestrator-init/scripts/install-commands.mjs", ["--target", target], env);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /dry run/i);
+  assert.equal(fs.existsSync(target), false);
+});
+
 console.log("All tests passed");
 
 function run(name, fn) {
