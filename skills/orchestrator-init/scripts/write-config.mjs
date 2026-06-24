@@ -42,7 +42,7 @@ function buildConfig(inventoryData) {
         provider,
         model: modelName,
         command: suggestCommand(surfaceName, modelName),
-        execution_mode: surfaceName === "ollama" ? "local_model" : "local_cli",
+        execution_mode: classifyExecutionMode(surfaceName, modelName),
         cost_tier: classifyCost(modelName, surfaceName),
         strengths: suggestStrengths(modelName, surfaceName),
         capabilities: suggestCapabilities(surfaceName, modelName),
@@ -151,9 +151,15 @@ function suggestCommand(surface, model) {
   return surface;
 }
 
+function classifyExecutionMode(surface, model) {
+  if (surface === "ollama") return isOllamaCloudModel(model) ? "cloud_cli" : "local_model";
+  return "local_cli";
+}
+
 function classifyCost(model, surface) {
   const lower = `${surface}/${model}`.toLowerCase();
-  if (surface === "ollama" || lower.includes("local")) return "local";
+  if (surface === "ollama" && !isOllamaCloudModel(model)) return "local";
+  if (lower.includes("local") && !isOllamaCloudModel(model)) return "local";
   if (/opus|flagship|max|pro|long-context|thinking/.test(lower)) return "premium";
   if (/mini|flash|haiku|small|lite|nano|fast/.test(lower)) return "cheap";
   return "standard";
@@ -174,7 +180,7 @@ function suggestStrengths(model, surface) {
     strengths.add("document_analysis");
     strengths.add("multimodal");
   }
-  if (/ollama|local|gemma|llama|qwen/.test(lower)) {
+  if ((/ollama|local|gemma|llama|qwen/.test(lower)) && !isOllamaCloudModel(model)) {
     strengths.add("private_context");
     strengths.add("local_work");
   }
@@ -182,6 +188,10 @@ function suggestStrengths(model, surface) {
     strengths.add("cheap_scout");
   }
   return [...strengths].length ? [...strengths] : ["general"];
+}
+
+function isOllamaCloudModel(model) {
+  return /(^|:)cloud$/i.test(String(model || ""));
 }
 
 function suggestCapabilities(surface, model) {
