@@ -64,7 +64,7 @@ This skill creates and maintains:
    ```
    When interview choices are known, pass deterministic overrides instead of editing YAML by hand:
    ```bash
-   node skills/orchestrator-init/scripts/write-config.mjs --dry-run --enable-all --profile balanced --route-defaults general=codex/openai/gpt-5.5,document_analysis=agy/google/gemini-3.5-flash-high
+   node skills/orchestrator-init/scripts/write-config.mjs --dry-run --enable-all --profile balanced --route-defaults general=codex/openai/gpt-5.5|agy/anthropic/claude-sonnet-4.6-thinking,document_analysis=agy/google/gemini-3.5-flash-high|agy/google/gemini-3.1-pro-high
    ```
 
 10. Ask before writing `config.yaml` or installing commands/plugins. If the user approves, write `config.yaml` from the proposed output.

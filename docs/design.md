@@ -61,7 +61,9 @@ A surface is the product or harness used to run an AI route:
 
 ### Delegate
 
-`orchestrator-delegate` chooses one route for one task. It may execute directly only when the route is cheap/local/low-risk and the configured policy allows it.
+`orchestrator-delegate` chooses one external route for one task. Delegate is external-by-default: when it can detect the current harness, it avoids routing back into that same route unless the user explicitly asks for it or no viable external route exists.
+
+Task defaults are ordered preference lists. The router removes the current route from the list, then chooses the first viable external route. If the current route would have been best overall, the plan should say so and show the recommended external fallback plus a short ranking.
 
 It must confirm first when:
 
@@ -70,6 +72,8 @@ It must confirm first when:
 - The route is cloud/background.
 - Files will be edited.
 - Long-running or destructive commands may run.
+
+For broad research, model comparison, validation, review council, or repo/codebase investigation, delegate should suggest a short swarm plan and not dispatch it automatically.
 
 ### Swarm
 
@@ -156,6 +160,14 @@ Multiple independent reviewers evaluate a plan, diff, result, or decision. Use s
 8. Ask before writing the config or installing commands/plugins.
 
 Task defaults should include at least: generalist, research, investigation, coding, review, document/multimodal, and local/private-sensitive work.
+
+Optional learned routing rules live in:
+
+```text
+~/.config/ai-orchestrator/routing-rules.yaml
+```
+
+The system may suggest adding rules after the user corrects routing, but must not write learned rules without explicit confirmation.
 
 ## Detection Strategy
 

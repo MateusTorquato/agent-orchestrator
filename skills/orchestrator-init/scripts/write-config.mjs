@@ -68,13 +68,13 @@ function buildConfig(inventoryData) {
       profile: "balanced",
       max_parallel_agents: 4,
       task_defaults: {
-        general: null,
-        research: null,
-        investigation: null,
-        coding: null,
-        code_review: null,
-        document_analysis: null,
-        local_private: null,
+        general: [],
+        research: [],
+        investigation: [],
+        coding: [],
+        code_review: [],
+        document_analysis: [],
+        local_private: [],
       },
     },
     privacy: {
@@ -172,7 +172,7 @@ function applyOverrides(config, parsedArgs) {
       const value = valueParts.join("=").trim();
       if (!key?.trim() || !value) continue;
       if (!Object.hasOwn(config.defaults.task_defaults, key.trim())) continue;
-      config.defaults.task_defaults[key.trim()] = value;
+      config.defaults.task_defaults[key.trim()] = value.split("|").map((item) => item.trim()).filter(Boolean);
     }
   }
 }
@@ -252,13 +252,14 @@ function suggestCapabilities(surface, model) {
 function toYaml(value, indent = 0) {
   const pad = " ".repeat(indent);
   if (Array.isArray(value)) {
-    if (!value.length) return "[]\n";
+    if (!value.length) return `${pad}[]\n`;
     return value.map((item) => `${pad}- ${formatYamlValue(item, indent + 2)}`).join("");
   }
   if (value && typeof value === "object") {
     const entries = Object.entries(value);
     if (!entries.length) return "{}\n";
     return entries.map(([key, item]) => {
+      if (Array.isArray(item) && !item.length) return `${pad}${quoteKey(key)}: []\n`;
       if (item && typeof item === "object") {
         const rendered = toYaml(item, indent + 2);
         return `${pad}${quoteKey(key)}:\n${rendered}`;

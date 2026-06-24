@@ -104,6 +104,10 @@ fs.writeFileSync(path.join(opencodeConfigDir, "opencode.json"), JSON.stringify({
   },
 }, null, 2));
 
+const codexConfigDir = path.join(fakeHome, ".codex");
+fs.mkdirSync(codexConfigDir, { recursive: true });
+fs.writeFileSync(path.join(codexConfigDir, "config.toml"), 'model = "gpt-5.5"\n');
+
 const env = {
   ...process.env,
   PATH: `${fakeBin}${path.delimiter}${process.env.PATH || ""}`,
@@ -119,6 +123,7 @@ run("detect environment", () => {
   assert.equal(inventory.tools.opencode.installed, true);
   assert.equal(inventory.tools.agy.installed, true);
   assert.equal(inventory.tools.ollama.installed, true);
+  assert.ok(inventory.surfaces.codex.detected_models.some((item) => item.model === "gpt-5.5"));
   assert.ok(inventory.surfaces.ollama.detected_models.some((item) => item.model === "qwen3-coder:latest"));
   assert.ok(inventory.surfaces.ollama.detected_models.some((item) => item.model === "gemini-3-flash-preview:latest" && item.execution_mode === "cloud_cli" && item.remote_model === true));
   assert.ok(inventory.surfaces.agy.detected_models.some((item) => item.model === "gemini-3.5-flash-high" && item.display_name === "Gemini 3.5 Flash (High)"));
@@ -133,7 +138,7 @@ run("write config dry run", () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /schema_version: 1/);
   assert.match(result.stdout, /initialized_at: "2026-01-01T00:00:00.000Z"/);
-  assert.match(result.stdout, /task_defaults:[\s\S]*general: null[\s\S]*research: null[\s\S]*investigation: null[\s\S]*coding: null[\s\S]*local_private: null/);
+  assert.match(result.stdout, /task_defaults:[\s\S]*general: \[\][\s\S]*research: \[\][\s\S]*investigation: \[\][\s\S]*coding: \[\][\s\S]*local_private: \[\]/);
   assert.match(result.stdout, /"ollama\/local\/qwen3-coder:latest":/);
   assert.match(result.stdout, /"ollama\/local\/deepseek-v4-pro:cloud":[\s\S]*execution_mode: "cloud_cli"/);
   assert.match(result.stdout, /"ollama\/local\/gemini-3-flash-preview:latest":[\s\S]*execution_mode: "cloud_cli"/);
@@ -151,19 +156,81 @@ run("write config dry run", () => {
 run("delegate honors configured task defaults", () => {
   const base = fs.readFileSync(path.join(configDir, "config.yaml"), "utf8");
   const withDefaults = setTaskDefaults(base, {
-    general: "ollama/local/qwen3-coder:latest",
-    research: "opencode/openai/gpt-5.5",
-    coding: "ollama/local/qwen3-coder:latest",
-    local_private: "ollama/local/qwen3-coder:latest",
+    general: ["ollama/local/qwen3-coder:latest"],
+    research: ["codex/openai/gpt-5.5", "agy/google/gemini-3.5-flash-low"],
+    coding: ["ollama/local/qwen3-coder:latest"],
+    local_private: ["ollama/local/qwen3-coder:latest"],
   });
   const defaultsConfig = path.join(configDir, "defaults.yaml");
-  fs.writeFileSync(defaultsConfig, withDefaults);
+  fs.writeFileSync(defaultsConfig, enableRoutes(withDefaults, ["codex/openai/gpt-5.5", "agy/google/gemini-3.5-flash-low", "ollama/local/qwen3-coder:latest"]));
 
-  const research = nodeScript("skills/orchestrator-delegate/scripts/route-task.mjs", ["--config", defaultsConfig, "--task", "Research latest approaches and compare sources", "--json"], env);
+  const research = nodeScript("skills/orchestrator-delegate/scripts/route-task.mjs", ["--config", defaultsConfig, "--current-route", "codex/openai/gpt-5.5", "--task", "Research latest approaches and compare sources", "--json"], env);
   assert.equal(research.status, 0, research.stderr);
   const researchPlan = JSON.parse(research.stdout);
-  assert.equal(researchPlan.selected_route, "opencode/openai/gpt-5.5");
+  assert.equal(researchPlan.selected_route, "agy/google/gemini-3.5-flash-low");
   assert.ok(researchPlan.reasons.includes("configured default for this task type"));
+  assert.equal(researchPlan.current_route_suppressed, true);
+});
+
+run("delegate excludes current route by default", () => {
+  const configPath = path.join(configDir, "external-default.yaml");
+  const base = nodeScript("skills/orchestrator-init/scripts/write-config.mjs", [
+    "--config-dir", configDir,
+    "--enable-all",
+    "--route-defaults", "coding=codex/openai/gpt-5.5|agy/anthropic/claude-sonnet-4.6-thinking|ollama/local/qwen3-coder:latest",
+    "--timestamp", "2026-01-01T00:00:00.000Z",
+  ], env);
+  assert.equal(base.status, 0, base.stderr);
+  fs.writeFileSync(configPath, base.stdout);
+
+  const result = nodeScript("skills/orchestrator-delegate/scripts/route-task.mjs", ["--config", configPath, "--current-route", "codex/openai/gpt-5.5", "--task", "Debug this code issue", "--json"], env);
+  assert.equal(result.status, 0, result.stderr);
+  const plan = JSON.parse(result.stdout);
+  assert.notEqual(plan.selected_route, "codex/openai/gpt-5.5");
+  assert.equal(plan.current_route_suppressed, true);
+  assert.equal(plan.best_overall_route, "codex/openai/gpt-5.5");
+});
+
+run("detect current route supports explicit override", () => {
+  const configPath = path.join(configDir, "external-default.yaml");
+  const result = nodeScript("skills/orchestrator-delegate/scripts/detect-current-route.mjs", ["--config", configPath, "--current-route", "codex/openai/gpt-5.5"], env);
+  assert.equal(result.status, 0, result.stderr);
+  const detected = JSON.parse(result.stdout);
+  assert.equal(detected.id, "codex/openai/gpt-5.5");
+  assert.equal(detected.source, "override");
+});
+
+run("delegate suggests swarm for broad repo research", () => {
+  const configPath = path.join(configDir, "swarm-suggestion.yaml");
+  const base = nodeScript("skills/orchestrator-init/scripts/write-config.mjs", ["--config-dir", configDir, "--enable-all", "--timestamp", "2026-01-01T00:00:00.000Z"], env);
+  assert.equal(base.status, 0, base.stderr);
+  fs.writeFileSync(configPath, base.stdout);
+
+  const result = nodeScript("skills/orchestrator-delegate/scripts/route-task.mjs", ["--config", configPath, "--current-route", "codex/openai/gpt-5.5", "--task", "Research this repo and explain what it does", "--json"], env);
+  assert.equal(result.status, 0, result.stderr);
+  const plan = JSON.parse(result.stdout);
+  assert.equal(plan.swarm_suggestion.mode, "specialist");
+  assert.equal(plan.swarm_suggestion.dispatch, "not_automatic");
+  assert.ok(plan.swarm_suggestion.routes.length >= 2);
+});
+
+run("delegate reads routing rules task defaults", () => {
+  const configPath = path.join(configDir, "rules-config.yaml");
+  const rulesPath = path.join(configDir, "routing-rules.yaml");
+  const base = nodeScript("skills/orchestrator-init/scripts/write-config.mjs", ["--config-dir", configDir, "--enable-all", "--timestamp", "2026-01-01T00:00:00.000Z"], env);
+  assert.equal(base.status, 0, base.stderr);
+  fs.writeFileSync(configPath, base.stdout);
+  fs.writeFileSync(rulesPath, [
+    "task_defaults:",
+    "  research:",
+    "    - ollama/local/deepseek-v4-pro:cloud",
+    "",
+  ].join("\n"));
+
+  const result = nodeScript("skills/orchestrator-delegate/scripts/route-task.mjs", ["--config", configPath, "--rules", rulesPath, "--task", "Research latest options", "--json"], env);
+  assert.equal(result.status, 0, result.stderr);
+  const plan = JSON.parse(result.stdout);
+  assert.equal(plan.selected_route, "ollama/local/deepseek-v4-pro:cloud");
 });
 
 run("delegate honors explicit model requests", () => {
@@ -200,13 +267,13 @@ run("write config applies interview overrides", () => {
     "--config-dir", configDir,
     "--enable-all",
     "--profile", "balanced",
-    "--route-defaults", "general=codex/openai/gpt-5.5,document_analysis=agy/google/gemini-3.5-flash-high,local_private=codex/openai/gpt-5.5",
+    "--route-defaults", "general=codex/openai/gpt-5.5|agy/anthropic/claude-sonnet-4.6-thinking,document_analysis=agy/google/gemini-3.5-flash-high,local_private=codex/openai/gpt-5.5",
     "--timestamp", "2026-01-01T00:00:00.000Z",
   ], env);
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /general: "codex\/openai\/gpt-5.5"/);
-  assert.match(result.stdout, /document_analysis: "agy\/google\/gemini-3.5-flash-high"/);
-  assert.match(result.stdout, /local_private: "codex\/openai\/gpt-5.5"/);
+  assert.match(result.stdout, /general:\n\s+- "codex\/openai\/gpt-5.5"\n\s+- "agy\/anthropic\/claude-sonnet-4.6-thinking"/);
+  assert.match(result.stdout, /document_analysis:\n\s+- "agy\/google\/gemini-3.5-flash-high"/);
+  assert.match(result.stdout, /local_private:\n\s+- "codex\/openai\/gpt-5.5"/);
   assert.doesNotMatch(result.stdout, /enabled: false/);
 });
 
@@ -414,19 +481,10 @@ function enableOnlyFirstRoute(yaml) {
 }
 
 function setTaskDefaults(yaml, defaults) {
-  const lines = yaml.split(/\r?\n/);
-  let inside = false;
-  return lines.map((line) => {
-    if (/^  task_defaults:$/.test(line)) {
-      inside = true;
-      return line;
-    }
-    if (inside && /^  [A-Za-z_]+:/.test(line)) inside = false;
-    if (inside) {
-      for (const [key, value] of Object.entries(defaults)) {
-        if (line.trim() === `${key}: null`) return line.replace(`${key}: null`, `${key}: ${JSON.stringify(value)}`);
-      }
-    }
-    return line;
-  }).join("\n");
+  let out = yaml;
+  for (const [key, values] of Object.entries(defaults)) {
+    const replacement = [`    ${key}:`, ...values.map((value) => `      - ${JSON.stringify(value)}`)].join("\n");
+    out = out.replace(new RegExp(`    ${key}: \\[\\]`), replacement);
+  }
+  return out;
 }

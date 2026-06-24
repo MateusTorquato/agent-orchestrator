@@ -23,13 +23,32 @@ defaults:
   profile: balanced
   max_parallel_agents: 4
   task_defaults:
-    general: codex/openai/gpt-5.5
-    research: codex/openai/gpt-5.5
-    investigation: codex/openai/gpt-5.5
-    coding: codex/openai/gpt-5.5
-    code_review: codex/openai/gpt-5.5
-    document_analysis: agy/google/gemini-3.5-flash-high
-    local_private: codex/openai/gpt-5.5
+    general:
+      - codex/openai/gpt-5.5
+      - agy/anthropic/claude-sonnet-4.6-thinking
+    research:
+      - codex/openai/gpt-5.5
+      - agy/google/gemini-3.1-pro-high
+      - agy/anthropic/claude-sonnet-4.6-thinking
+    investigation:
+      - codex/openai/gpt-5.5
+      - agy/anthropic/claude-sonnet-4.6-thinking
+      - ollama/local/deepseek-v4-pro:cloud
+    coding:
+      - codex/openai/gpt-5.5
+      - agy/anthropic/claude-sonnet-4.6-thinking
+      - ollama/local/qwen3-coder:480b-cloud
+    code_review:
+      - codex/openai/gpt-5.5
+      - agy/anthropic/claude-opus-4.6-thinking
+      - ollama/local/deepseek-v4-pro:cloud
+    document_analysis:
+      - agy/google/gemini-3.5-flash-high
+      - agy/google/gemini-3.1-pro-high
+      - ollama/local/gemini-3-flash-preview:latest
+    local_private:
+      - codex/openai/gpt-5.5
+      - agy/anthropic/claude-sonnet-4.6-thinking
 
 privacy:
   external_apis_allowed: ask
