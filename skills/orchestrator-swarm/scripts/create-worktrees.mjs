@@ -12,7 +12,8 @@ const root = expandPath(args.root || "~/.cache/ai-orchestrator/worktrees");
 const write = Boolean(args.write || args.confirmed);
 
 if (!runId || !routes.length) {
-  console.error("Usage: create-worktrees.mjs --run-id <id> --routes route-a,route-b [--root <path>]");
+  console.error("Usage: create-worktrees.mjs --run-id <id> --routes route-a,route-b [--root <path>] [--write --confirmed]");
+  console.error("Default is dry-run. Use --write --confirmed only after explicit user approval.");
   process.exit(2);
 }
 
