@@ -122,5 +122,6 @@ Do not publish until the local release verification passes and the maintainer co
 
 ```bash
 npm run release:verify
-gh repo create MateusTorquato/agent-orchestrator --public --source=. --remote=origin --push
+npm run publish:github
+npm run publish:github -- --confirmed
 ```

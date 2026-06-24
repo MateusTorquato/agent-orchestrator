@@ -47,7 +47,8 @@
     "detect": "node skills/orchestrator-init/scripts/detect-environment.mjs",
     "test": "node tests/run-tests.mjs",
     "skills:list": "npx skills add . --list",
-    "release:verify": "node scripts/verify-release.mjs"
+    "release:verify": "node scripts/verify-release.mjs",
+    "publish:github": "node scripts/publish-github.mjs"
   },
   "pi": {
     "extensions": [
