@@ -191,7 +191,7 @@ function suggestStrengths(model, surface) {
 }
 
 function isOllamaCloudModel(model) {
-  return /(^|:)cloud$/i.test(String(model || ""));
+  return /(^|[:_-])cloud$/i.test(String(model || ""));
 }
 
 function suggestCapabilities(surface, model) {

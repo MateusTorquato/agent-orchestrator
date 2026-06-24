@@ -35,6 +35,7 @@ if [ "$1" = "list" ]; then
   echo "NAME ID SIZE MODIFIED"
   echo "qwen3-coder:latest abc 10GB today"
   echo "deepseek-v4-pro:cloud xyz 0B today"
+  echo "gpt-oss:120b-cloud ghi 0B today"
   echo "gemma3:12b def 8GB today"
   exit 0
 fi
@@ -82,7 +83,9 @@ run("write config dry run", () => {
   assert.match(result.stdout, /initialized_at: "2026-01-01T00:00:00.000Z"/);
   assert.match(result.stdout, /"ollama\/local\/qwen3-coder:latest":/);
   assert.match(result.stdout, /"ollama\/local\/deepseek-v4-pro:cloud":[\s\S]*execution_mode: "cloud_cli"/);
+  assert.match(result.stdout, /"ollama\/local\/gpt-oss:120b-cloud":[\s\S]*execution_mode: "cloud_cli"/);
   assert.doesNotMatch(result.stdout.match(/"ollama\/local\/deepseek-v4-pro:cloud":[\s\S]*?(?=\n  "ollama\/|\ncustom_routes:)/)?.[0] || "", /private_context|local_work/);
+  assert.doesNotMatch(result.stdout.match(/"ollama\/local\/gpt-oss:120b-cloud":[\s\S]*?(?=\n  "ollama\/|\ncustom_routes:)/)?.[0] || "", /private_context|local_work/);
   assert.match(result.stdout, /enabled: false/);
   fs.writeFileSync(path.join(configDir, "config.yaml"), enableRoutes(result.stdout, ["opencode/openai/gpt-5.5", "ollama/local/qwen3-coder:latest"]));
 });

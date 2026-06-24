@@ -264,7 +264,7 @@ Allowed values:
 - `manual`
 - `custom`
 
-Ollama routes are `local_model` only when the model is actually local. Ollama model names ending in `:cloud` must be treated as `cloud_cli`, not as private local routes.
+Ollama routes are `local_model` only when the model is actually local. Ollama model names ending in `:cloud` or `-cloud` must be treated as `cloud_cli`, not as private local routes.
 
 ## Capability Values
 
