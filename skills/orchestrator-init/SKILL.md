@@ -26,7 +26,9 @@ This skill creates and maintains:
 
 2. Review detected tools, harnesses, configured models, local models, and redactions.
 
-3. Prefer doing the interview in Plan mode when the current agent/runtime supports selectable questions. Explain that Plan mode is recommended because the user can pick routes and defaults from options instead of typing YAML by hand. If Plan mode or selectable questions are unavailable, ask concise numbered questions in normal chat.
+3. Prefer doing the interview in Plan mode when the current agent/runtime supports selectable questions. After detection, explain that Plan mode is recommended because the user can pick routes and defaults from options instead of typing YAML by hand. Make clear that Plan mode is not required.
+
+   If the current session is not in Plan mode, pause before the interview and ask the user to switch to Plan mode if they want the recommended setup experience. Tell them to type `continue` after switching modes, or type `continue in text mode` to proceed with numbered questions in the current chat. Do not block if the user explicitly chooses text mode.
 
 4. Ask the user which detected harness/model routes to enable. When a harness has linked models, list them and ask whether to enable all or selected models.
 
@@ -104,6 +106,10 @@ When selectable questions are available, ask in small batches after detection:
 10. **Write config**: show the proposed config summary and ask before writing.
 
 Do not ask all questions at once. Use the previous answer to narrow the next options.
+
+### Text Mode Continuation
+
+If the user chooses not to switch to Plan mode, continue in normal chat with numbered options. Keep each question small and default to a recommended option first.
 
 ## Config Editing
 
