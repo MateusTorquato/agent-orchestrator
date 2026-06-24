@@ -312,7 +312,7 @@ function shouldSuggestSwarm(classification, routingRules = {}) {
 function buildSwarmSuggestion(taskText, rankedRoutes, currentRouteId, allowCurrent) {
   const usable = rankedRoutes
     .filter((item) => allowCurrent || item.route.id !== currentRouteId)
-    .filter((item) => item.route.cost_tier !== "premium" || rankedRoutes.length < 4);
+    .filter((item) => item.score > 0);
   const selected = diversifyRoutes(usable).slice(0, 3);
   return {
     mode: "specialist",
@@ -328,17 +328,31 @@ function buildSwarmSuggestion(taskText, rankedRoutes, currentRouteId, allowCurre
 }
 
 function diversifyRoutes(items) {
-  const seenSurfaces = new Set();
+  const seenFamilies = new Set();
   const out = [];
   for (const item of items) {
-    if (seenSurfaces.has(item.route.surface)) continue;
-    seenSurfaces.add(item.route.surface);
+    const family = routeFamily(item.route);
+    if (seenFamilies.has(family)) continue;
+    seenFamilies.add(family);
     out.push(item);
   }
   for (const item of items) {
     if (!out.includes(item)) out.push(item);
   }
   return out;
+}
+
+function routeFamily(route) {
+  const lower = [route.provider, route.model, route.display_name].filter(Boolean).join(" ").toLowerCase();
+  if (/claude|anthropic|opus|sonnet/.test(lower)) return "claude";
+  if (/gemini|google/.test(lower)) return "gemini";
+  if (/deepseek/.test(lower)) return "deepseek";
+  if (/qwen/.test(lower)) return "qwen";
+  if (/glm/.test(lower)) return "glm";
+  if (/gpt-oss|openai|gpt/.test(lower)) return "openai";
+  if (/kimi/.test(lower)) return "kimi";
+  if (/minimax/.test(lower)) return "minimax";
+  return `${route.provider}/${route.model}`;
 }
 
 function asList(value) {
