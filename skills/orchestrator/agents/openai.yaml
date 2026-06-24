@@ -1,0 +1,7 @@
+interface:
+  display_name: "Agent Orchestrator"
+  short_description: "Route tasks across AI agents and models"
+  brand_color: "#2563EB"
+  default_prompt: "Use $orchestrator to choose between init, delegate, and swarm workflows."
+policy:
+  allow_implicit_invocation: true

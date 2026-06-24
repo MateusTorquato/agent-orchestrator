@@ -1,0 +1,7 @@
+interface:
+  display_name: "Orchestrator Init"
+  short_description: "Detect and configure AI agent routes"
+  brand_color: "#2563EB"
+  default_prompt: "Use $orchestrator-init to detect installed AI CLIs, local models, and route config."
+policy:
+  allow_implicit_invocation: true

@@ -4,8 +4,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
-const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-orchestrator-test-"));
 const fakeBin = path.join(tmp, "bin");
 const fakeHome = path.join(tmp, "home");
@@ -83,12 +84,28 @@ run("write config dry run", () => {
   fs.writeFileSync(path.join(configDir, "config.yaml"), enableRoutes(result.stdout, ["opencode/openai/gpt-5.5", "ollama/local/qwen3-coder:latest"]));
 });
 
+run("write config dry-run wins over write", () => {
+  const target = path.join(configDir, "dry-run-wins.yaml");
+  const result = nodeScript("skills/orchestrator-init/scripts/write-config.mjs", ["--config-dir", configDir, "--output", target, "--write", "--dry-run", "--timestamp", "2026-01-01T00:00:00.000Z"], env);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /schema_version: 1/);
+  assert.equal(fs.existsSync(target), false);
+});
+
 run("delegate chooses local route for sensitive coding", () => {
   const result = nodeScript("skills/orchestrator-delegate/scripts/route-task.mjs", ["--config", path.join(configDir, "config.yaml"), "--task", "Fix code using customer PII logs locally", "--json"], env);
   assert.equal(result.status, 0, result.stderr);
   const plan = JSON.parse(result.stdout);
   assert.match(plan.selected_route, /ollama\/local\/qwen3-coder/);
   assert.equal(plan.classification.sensitive, true);
+});
+
+run("delegate treats non-English sensitive terms as sensitive", () => {
+  const result = nodeScript("skills/orchestrator-delegate/scripts/route-task.mjs", ["--config", path.join(configDir, "config.yaml"), "--task", "Corrigir bug usando dados pessoais do cliente em produção", "--json"], env);
+  assert.equal(result.status, 0, result.stderr);
+  const plan = JSON.parse(result.stdout);
+  assert.equal(plan.classification.sensitive, true);
+  assert.match(plan.selected_route, /ollama\/local\/qwen3-coder/);
 });
 
 run("delegate positional parsing ignores option values", () => {
@@ -136,6 +153,21 @@ run("install commands dry run does not write", () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /dry run/i);
   assert.equal(fs.existsSync(target), false);
+
+  const dryRunWins = nodeScript("skills/orchestrator-init/scripts/install-commands.mjs", ["--target", target, "--write", "--dry-run"], env);
+  assert.equal(dryRunWins.status, 0, dryRunWins.stderr);
+  assert.match(dryRunWins.stdout, /dry run/i);
+  assert.equal(fs.existsSync(target), false);
+});
+
+run("smoke test dry-run wins over write", () => {
+  const inventoryPath = path.join(configDir, "inventory.json");
+  const before = fs.readFileSync(inventoryPath, "utf8");
+  const result = nodeScript("skills/orchestrator-init/scripts/smoke-test.mjs", ["--config-dir", configDir, "--confirmed", "--write", "--dry-run"], env);
+  assert.equal(result.status, 0, result.stderr);
+  const outputInventory = JSON.parse(result.stdout);
+  assert.equal(outputInventory.tools.codex.smoke_test_ok, true);
+  assert.equal(fs.readFileSync(inventoryPath, "utf8"), before);
 });
 
 run("compare results writes comparison", () => {
@@ -182,6 +214,31 @@ run("create worktrees is dry-run by default and requires two routes", () => {
   assert.equal(parsed.dry_run, true);
   assert.equal(parsed.worktrees.length, 2);
   assert.equal(fs.existsSync(parsed.baseDir), false);
+
+  const writeOnly = nodeScript("skills/orchestrator-swarm/scripts/create-worktrees.mjs", ["--run-id", "write-only", "--routes", "route-a,route-b", "--root", path.join(tmp, "worktrees"), "--write"], env, repo);
+  assert.equal(writeOnly.status, 0, writeOnly.stderr);
+  const writeOnlyParsed = JSON.parse(writeOnly.stdout);
+  assert.equal(writeOnlyParsed.dry_run, true);
+  assert.equal(fs.existsSync(writeOnlyParsed.baseDir), false);
+
+  const confirmedOnly = nodeScript("skills/orchestrator-swarm/scripts/create-worktrees.mjs", ["--run-id", "confirmed-only", "--routes", "route-a,route-b", "--root", path.join(tmp, "worktrees"), "--confirmed"], env, repo);
+  assert.equal(confirmedOnly.status, 0, confirmedOnly.stderr);
+  const confirmedOnlyParsed = JSON.parse(confirmedOnly.stdout);
+  assert.equal(confirmedOnlyParsed.dry_run, true);
+  assert.equal(fs.existsSync(confirmedOnlyParsed.baseDir), false);
+
+  const confirmedWrite = nodeScript("skills/orchestrator-swarm/scripts/create-worktrees.mjs", ["--run-id", "confirmed-write", "--routes", "route-a,route-b", "--root", path.join(tmp, "worktrees"), "--write", "--confirmed"], env, repo);
+  assert.equal(confirmedWrite.status, 0, confirmedWrite.stderr);
+  const confirmedWriteParsed = JSON.parse(confirmedWrite.stdout);
+  assert.equal(confirmedWriteParsed.dry_run, false);
+  assert.equal(confirmedWriteParsed.worktrees.length, 2);
+  assert.ok(confirmedWriteParsed.worktrees.every((worktree) => worktree.ok && fs.existsSync(worktree.path)));
+
+  const dryRunWins = nodeScript("skills/orchestrator-swarm/scripts/create-worktrees.mjs", ["--run-id", "dry-run-wins", "--routes", "route-a,route-b", "--root", path.join(tmp, "worktrees"), "--write", "--confirmed", "--dry-run"], env, repo);
+  assert.equal(dryRunWins.status, 0, dryRunWins.stderr);
+  const dryRunWinsParsed = JSON.parse(dryRunWins.stdout);
+  assert.equal(dryRunWinsParsed.dry_run, true);
+  assert.equal(fs.existsSync(dryRunWinsParsed.baseDir), false);
 });
 
 console.log("All tests passed");

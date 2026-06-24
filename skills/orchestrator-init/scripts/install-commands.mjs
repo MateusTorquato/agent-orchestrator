@@ -2,13 +2,14 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const args = parseArgs(process.argv.slice(2));
-const scriptDir = path.dirname(new URL(import.meta.url).pathname);
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "../../..");
 const sourceRoot = path.resolve(repoRoot, "commands", "claude");
 const targetRoot = expandPath(args.target || "~/.claude/commands");
-const write = Boolean(args.write);
+const write = Boolean(args.write && !args["dry-run"]);
 
 if (!fs.existsSync(sourceRoot)) {
   console.error(`Command source directory not found: ${sourceRoot}`);

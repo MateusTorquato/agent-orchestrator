@@ -58,6 +58,18 @@ Rules:
 - Controller compares committed results.
 - Nothing is applied to the main repo without user confirmation.
 
+Preview worktree creation first:
+
+```bash
+node skills/orchestrator-swarm/scripts/create-worktrees.mjs --run-id <run-id> --routes route-a,route-b
+```
+
+Create worktrees only after explicit user approval:
+
+```bash
+node skills/orchestrator-swarm/scripts/create-worktrees.mjs --run-id <run-id> --routes route-a,route-b --write --confirmed
+```
+
 ### Compare Harnesses
 
 Allow the same model through different harnesses only when the mode is explicitly `compare_harnesses` or the user asks for it.

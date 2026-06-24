@@ -33,6 +33,8 @@ If missing, stop and route to `orchestrator-init`. Do not guess a route unless t
    - cost/latency preference
    - needed capabilities
 
+   If route choice is ambiguous or the user asks why one model/harness is better than another, read `references/model-routing.md`.
+
 3. Select one route using configured strengths, capabilities, cost, privacy, and profile.
 
 4. Confirm before executing when the selected route involves:

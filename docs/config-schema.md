@@ -128,7 +128,7 @@ routes:
     provider: local
     model: qwen3-coder
     command: "ollama run qwen3-coder"
-    execution_mode: local_cli
+    execution_mode: local_model
     cost_tier: local
     strengths:
       - local_code

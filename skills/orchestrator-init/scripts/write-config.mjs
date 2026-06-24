@@ -8,7 +8,7 @@ const args = parseArgs(process.argv.slice(2));
 const configDir = expandPath(args["config-dir"] || process.env.AI_ORCHESTRATOR_CONFIG_DIR || DEFAULT_CONFIG_DIR);
 const inventoryPath = expandPath(args.inventory || path.join(configDir, "inventory.json"));
 const outputPath = expandPath(args.output || path.join(configDir, "config.yaml"));
-const write = Boolean(args.write);
+const write = Boolean(args.write && !args["dry-run"]);
 const timestamp = args.timestamp || process.env.AI_ORCHESTRATOR_TIMESTAMP || new Date().toISOString();
 
 if (!fs.existsSync(inventoryPath)) {

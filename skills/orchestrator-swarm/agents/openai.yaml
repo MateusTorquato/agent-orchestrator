@@ -1,0 +1,7 @@
+interface:
+  display_name: "Orchestrator Swarm"
+  short_description: "Coordinate multiple AI routes"
+  brand_color: "#2563EB"
+  default_prompt: "Use $orchestrator-swarm to validate this plan with multiple distinct AI routes."
+policy:
+  allow_implicit_invocation: true

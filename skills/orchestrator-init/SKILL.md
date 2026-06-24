@@ -30,7 +30,7 @@ This skill creates and maintains:
 
 4. Ask whether to run smoke tests. Smoke tests may consume model credits, so they require explicit confirmation:
    ```bash
-   node skills/orchestrator-init/scripts/smoke-test.mjs
+   node skills/orchestrator-init/scripts/smoke-test.mjs --confirmed --write
    ```
 
 5. Propose a config:

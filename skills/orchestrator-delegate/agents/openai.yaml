@@ -1,0 +1,7 @@
+interface:
+  display_name: "Orchestrator Delegate"
+  short_description: "Delegate one task to the best route"
+  brand_color: "#2563EB"
+  default_prompt: "Use $orchestrator-delegate to choose the best configured AI route for this task."
+policy:
+  allow_implicit_invocation: true

@@ -25,6 +25,23 @@
     "routing",
     "coding-agents"
   ],
+  "files": [
+    ".claude-plugin",
+    ".codex-plugin",
+    ".cursor-plugin",
+    ".kimi-plugin",
+    ".opencode",
+    ".pi",
+    "commands",
+    "docs",
+    "evals",
+    "hooks",
+    "skills",
+    "GEMINI.md",
+    "gemini-extension.json",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "detect": "node skills/orchestrator-init/scripts/detect-environment.mjs",
     "test": "node tests/run-tests.mjs",

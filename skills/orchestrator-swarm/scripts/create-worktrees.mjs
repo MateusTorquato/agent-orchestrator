@@ -9,7 +9,7 @@ const runId = args["run-id"];
 const routes = (args.routes || "").split(",").map((item) => item.trim()).filter(Boolean);
 const safeRoutes = [...new Set(routes.map((route) => sanitizeRoute(route)))];
 const root = expandPath(args.root || "~/.cache/ai-orchestrator/worktrees");
-const write = Boolean(args.write || args.confirmed);
+const write = Boolean(args.write && args.confirmed && !args["dry-run"]);
 
 if (!runId || !routes.length) {
   console.error("Usage: create-worktrees.mjs --run-id <id> --routes route-a,route-b [--root <path>] [--write --confirmed]");

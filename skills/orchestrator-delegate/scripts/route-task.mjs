@@ -59,10 +59,10 @@ if (args.json) {
 
 function classifyTask(text) {
   const lower = String(text || "").toLowerCase();
-  const sensitive = /secret|credential|token|api key|customer|client|user data|pii|production|logs|financial|contract|legal|health|hr|segredo|credencial|senha|cliente|produção|dados pessoais|financeiro|contrato/.test(lower);
+  const sensitive = /secret|credential|password|token|api key|customer|client|user data|personal data|pii|gdpr|hipaa|production|prod\b|logs?|financial|contract|legal|health|healthcare|medical|hr|confidential|private|segredo|credencial|senha|token|chave de api|cliente|usuário|dados pessoais|produção|prod\b|financeiro|contrato|jurídico|legal|saúde|médico|confidencial|privado|secreto|contraseña|credencial|cliente|usuario|datos personales|producción|financiero|contrato|jurídico|salud|médico|confidencial|privado|secret|identifiant|mot de passe|client|données personnelles|production|financier|contrat|juridique|santé|médical|confidentiel|privé/.test(lower);
   const multimodal = /pdf|image|screenshot|audio|video|ocr|scan|table|spreadsheet|imagem|áudio|vídeo|tabela/.test(lower);
   const coding = /code|repo|bug|test|refactor|implement|typescript|python|api|commit|diff|código|bug|teste|refator/.test(lower);
-  const review = /review|validate|audit|security|pr|diff|revis|auditoria|segurança/.test(lower);
+  const review = /review|validate|audit|security|\bpr\b|diff|revis|auditoria|segurança/.test(lower);
   const research = /research|source|compare|market|paper|latest|pesquis|fonte|compar/.test(lower);
   const fileEdits = /edit|change|fix|implement|refactor|write|modify|alter|corrigir|implementar|editar|alterar/.test(lower) && coding;
   const premiumIntent = /best|highest quality|don't economize|premium|melhor|não economize/.test(lower);
