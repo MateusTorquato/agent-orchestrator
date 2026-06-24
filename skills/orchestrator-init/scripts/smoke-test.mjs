@@ -52,6 +52,7 @@ function smokeCommand(toolName, executable, text) {
   if (toolName === "gemini") return { command: executable, args: ["-p", text] };
   if (toolName === "qwen") return { command: executable, args: ["-p", text] };
   if (toolName === "opencode") return { command: executable, args: ["run", text] };
+  if (toolName === "agy") return { command: executable, args: ["--model", "Gemini 3.5 Flash (Low)", "--print", text] };
   return null;
 }
 

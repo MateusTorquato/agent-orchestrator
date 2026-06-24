@@ -28,6 +28,31 @@ if [ "$1" = "run" ]; then echo "ORCHESTRATOR_OK"; exit 0; fi
 echo "opencode fake"
 `);
 
+writeExecutable("agy", `#!/usr/bin/env bash
+if [ "$1" = "--version" ]; then echo "1.0.10"; exit 0; fi
+if [ "$1" = "--help" ]; then
+  echo "Usage of agy:"
+  echo "  --model Model for the current CLI session"
+  echo "  --print Run a single prompt non-interactively and print the response"
+  echo "Available subcommands:"
+  echo "  models List available models"
+  exit 0
+fi
+if [ "$1" = "models" ]; then
+  echo "Gemini 3.5 Flash (Medium)"
+  echo "Gemini 3.5 Flash (High)"
+  echo "Gemini 3.5 Flash (Low)"
+  echo "Gemini 3.1 Pro (Low)"
+  echo "Gemini 3.1 Pro (High)"
+  echo "Claude Sonnet 4.6 (Thinking)"
+  echo "Claude Opus 4.6 (Thinking)"
+  echo "GPT-OSS 120B (Medium)"
+  exit 0
+fi
+if [ "$1" = "--model" ] && [ "$3" = "--print" ]; then echo "ORCHESTRATOR_OK"; exit 0; fi
+echo "agy fake"
+`);
+
 writeExecutable("ollama", `#!/usr/bin/env bash
 if [ "$1" = "--version" ]; then echo "ollama 0.9.0"; exit 0; fi
 if [ "$1" = "--help" ]; then echo "ollama help"; exit 0; fi
@@ -35,8 +60,31 @@ if [ "$1" = "list" ]; then
   echo "NAME ID SIZE MODIFIED"
   echo "qwen3-coder:latest abc 10GB today"
   echo "deepseek-v4-pro:cloud xyz 0B today"
+  echo "gemini-3-flash-preview:latest jkl - today"
   echo "gpt-oss:120b-cloud ghi 0B today"
   echo "gemma3:12b def 8GB today"
+  exit 0
+fi
+if [ "$1" = "show" ]; then
+  if [ "$2" = "gemini-3-flash-preview:latest" ]; then
+    echo "  Model"
+    echo "    Remote model    gemini-3-flash-preview"
+    echo "    Remote URL      https://ollama.com:443"
+    echo "  Capabilities"
+    echo "    vision"
+    echo "    tools"
+    exit 0
+  fi
+  if [[ "$2" == *":cloud" || "$2" == *"-cloud" ]]; then
+    echo "  Model"
+    echo "    Remote model    $2"
+    echo "    Remote URL      https://ollama.com:443"
+    exit 0
+  fi
+  echo "  Model"
+  echo "    architecture llama"
+  echo "  Parameters"
+  echo "    size 10B"
   exit 0
 fi
 `);
@@ -69,8 +117,12 @@ run("detect environment", () => {
   assert.equal(inventory.detected_at, "2026-01-01T00:00:00.000Z");
   assert.equal(inventory.tools.codex.installed, true);
   assert.equal(inventory.tools.opencode.installed, true);
+  assert.equal(inventory.tools.agy.installed, true);
   assert.equal(inventory.tools.ollama.installed, true);
   assert.ok(inventory.surfaces.ollama.detected_models.some((item) => item.model === "qwen3-coder:latest"));
+  assert.ok(inventory.surfaces.ollama.detected_models.some((item) => item.model === "gemini-3-flash-preview:latest" && item.execution_mode === "cloud_cli" && item.remote_model === true));
+  assert.ok(inventory.surfaces.agy.detected_models.some((item) => item.model === "gemini-3.5-flash-high" && item.display_name === "Gemini 3.5 Flash (High)"));
+  assert.ok(inventory.surfaces.agy.detected_models.some((item) => item.model === "claude-opus-4.6-thinking" && item.provider === "anthropic"));
   assert.ok(inventory.surfaces.opencode.detected_models.some((item) => item.model === "gpt-5.5"));
   assert.ok(inventory.redactions.secrets_found >= 2);
   assert.doesNotMatch(JSON.stringify(inventory), /should-not-leak/);
@@ -84,8 +136,13 @@ run("write config dry run", () => {
   assert.match(result.stdout, /task_defaults:[\s\S]*general: null[\s\S]*research: null[\s\S]*investigation: null[\s\S]*coding: null[\s\S]*local_private: null/);
   assert.match(result.stdout, /"ollama\/local\/qwen3-coder:latest":/);
   assert.match(result.stdout, /"ollama\/local\/deepseek-v4-pro:cloud":[\s\S]*execution_mode: "cloud_cli"/);
+  assert.match(result.stdout, /"ollama\/local\/gemini-3-flash-preview:latest":[\s\S]*execution_mode: "cloud_cli"/);
   assert.match(result.stdout, /"ollama\/local\/gpt-oss:120b-cloud":[\s\S]*execution_mode: "cloud_cli"/);
+  assert.match(result.stdout, /"agy\/google\/gemini-3.5-flash-high":[\s\S]*display_name: "Gemini 3.5 Flash \(High\)"[\s\S]*command: "agy --model \\"Gemini 3.5 Flash \(High\)\\" --print"[\s\S]*cost_tier: "premium"/);
+  assert.match(result.stdout, /"agy\/google\/gemini-3.5-flash-low":[\s\S]*cost_tier: "cheap"/);
+  assert.match(result.stdout, /"agy\/anthropic\/claude-opus-4.6-thinking":[\s\S]*cost_tier: "premium"/);
   assert.doesNotMatch(result.stdout.match(/"ollama\/local\/deepseek-v4-pro:cloud":[\s\S]*?(?=\n  "ollama\/|\ncustom_routes:)/)?.[0] || "", /private_context|local_work/);
+  assert.doesNotMatch(result.stdout.match(/"ollama\/local\/gemini-3-flash-preview:latest":[\s\S]*?(?=\n  "ollama\/|\ncustom_routes:)/)?.[0] || "", /private_context|local_work/);
   assert.doesNotMatch(result.stdout.match(/"ollama\/local\/gpt-oss:120b-cloud":[\s\S]*?(?=\n  "ollama\/|\ncustom_routes:)/)?.[0] || "", /private_context|local_work/);
   assert.match(result.stdout, /enabled: false/);
   fs.writeFileSync(path.join(configDir, "config.yaml"), enableRoutes(result.stdout, ["opencode/openai/gpt-5.5", "ollama/local/qwen3-coder:latest"]));
@@ -115,6 +172,21 @@ run("write config dry-run wins over write", () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /schema_version: 1/);
   assert.equal(fs.existsSync(target), false);
+});
+
+run("write config applies interview overrides", () => {
+  const result = nodeScript("skills/orchestrator-init/scripts/write-config.mjs", [
+    "--config-dir", configDir,
+    "--enable-all",
+    "--profile", "balanced",
+    "--route-defaults", "general=codex/openai/gpt-5.5,document_analysis=agy/google/gemini-3.5-flash-high,local_private=codex/openai/gpt-5.5",
+    "--timestamp", "2026-01-01T00:00:00.000Z",
+  ], env);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /general: "codex\/openai\/gpt-5.5"/);
+  assert.match(result.stdout, /document_analysis: "agy\/google\/gemini-3.5-flash-high"/);
+  assert.match(result.stdout, /local_private: "codex\/openai\/gpt-5.5"/);
+  assert.doesNotMatch(result.stdout, /enabled: false/);
 });
 
 run("delegate chooses local route for sensitive coding", () => {
@@ -192,6 +264,7 @@ run("smoke test dry-run wins over write", () => {
   assert.equal(result.status, 0, result.stderr);
   const outputInventory = JSON.parse(result.stdout);
   assert.equal(outputInventory.tools.codex.smoke_test_ok, true);
+  assert.equal(outputInventory.tools.agy.smoke_test_ok, true);
   assert.equal(fs.readFileSync(inventoryPath, "utf8"), before);
 });
 

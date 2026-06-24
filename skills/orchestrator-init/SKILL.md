@@ -50,6 +50,10 @@ This skill creates and maintains:
    ```bash
    node skills/orchestrator-init/scripts/write-config.mjs --dry-run
    ```
+   When interview choices are known, pass deterministic overrides instead of editing YAML by hand:
+   ```bash
+   node skills/orchestrator-init/scripts/write-config.mjs --dry-run --enable-all --profile balanced --route-defaults general=codex/openai/gpt-5.5,document_analysis=agy/google/gemini-3.5-flash-high
+   ```
 
 8. Ask before writing `config.yaml` or installing commands/plugins.
 
@@ -68,8 +72,12 @@ Detect both:
 
 - CLI presence and help/version behavior.
 - Local config files that reveal configured providers/models.
+- Harness-specific model lists such as `agy models`.
+- Ollama model metadata via `ollama show <model>`, because Ollama can expose remote models without a `:cloud` or `-cloud` suffix.
 
 Never store secret values. It is acceptable to record that a secret-like field exists and was redacted.
+
+Treat harnesses as separate routes even when they expose the same underlying model. For example, Gemini through `agy`/Antigravity, Gemini CLI, and Ollama Remote Model are different routes with different tools, permissions, billing, and reliability characteristics.
 
 ## User Interview
 
@@ -87,6 +95,9 @@ Ask concise questions. Capture:
 - Default route for document/multimodal tasks.
 - Default route for local/private-sensitive tasks.
 - Privacy policy for code, logs, documents, production data, and personal/customer data.
+- Whether the user has or wants to use Ollama Cloud credits/subscription.
+- Whether the user wants to include `agy`/Antigravity routes when detected.
+- What to do when no true local/private model is detected.
 - Whether to install harness commands/plugins.
 - Whether to run smoke tests.
 
@@ -123,6 +134,7 @@ If Node is unavailable, do not fail silently. Tell the user Node is recommended 
 command -v claude && claude --help
 command -v codex && codex --help
 command -v opencode && opencode --help
+command -v agy && agy --help && agy models
 command -v gemini && gemini --help
 command -v qwen && qwen --help
 command -v ollama && ollama list

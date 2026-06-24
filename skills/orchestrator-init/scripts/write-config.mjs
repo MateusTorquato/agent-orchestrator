@@ -18,6 +18,7 @@ if (!fs.existsSync(inventoryPath)) {
 
 const inventory = JSON.parse(fs.readFileSync(inventoryPath, "utf8"));
 const config = buildConfig(inventory);
+applyOverrides(config, args);
 const yaml = toYaml(config);
 
 if (write) {
@@ -36,19 +37,22 @@ function buildConfig(inventoryData) {
       const modelName = model.model;
       if (!modelName) continue;
       const routeId = `${surfaceName}/${provider}/${modelName}`.replace(/\s+/g, "-");
+      const executionMode = classifyExecutionMode(surfaceName, modelName, model);
+      const costTier = classifyCost(modelName, surfaceName, model);
       routes[routeId] = {
         enabled: false,
         surface: surfaceName,
         provider,
         model: modelName,
-        command: suggestCommand(surfaceName, modelName),
-        execution_mode: classifyExecutionMode(surfaceName, modelName),
-        cost_tier: classifyCost(modelName, surfaceName),
-        strengths: suggestStrengths(modelName, surfaceName),
-        capabilities: suggestCapabilities(surfaceName, modelName),
+        ...(model.display_name ? { display_name: model.display_name } : {}),
+        command: suggestCommand(surfaceName, modelName, model),
+        execution_mode: executionMode,
+        cost_tier: costTier,
+        strengths: suggestStrengths(modelName, surfaceName, model),
+        capabilities: suggestCapabilities(surfaceName, modelName, model),
         limits: {
           max_runtime_seconds: surfaceName === "ollama" ? 600 : 1800,
-          max_parallel: classifyCost(modelName, surfaceName) === "premium" ? 1 : 2,
+          max_parallel: costTier === "premium" ? 1 : 2,
           max_context: "unknown",
         },
         detected_from: model.source || "inventory",
@@ -142,6 +146,7 @@ function buildConfig(inventoryData) {
         codex: false,
         cursor: false,
         opencode: false,
+        agy: false,
         kimi: false,
         gemini: false,
       },
@@ -149,8 +154,32 @@ function buildConfig(inventoryData) {
   };
 }
 
-function suggestCommand(surface, model) {
+function applyOverrides(config, parsedArgs) {
+  if (parsedArgs["enable-all"]) {
+    for (const route of Object.values(config.routes || {})) route.enabled = true;
+  }
+
+  if (parsedArgs.profile) {
+    config.defaults.profile = parsedArgs.profile;
+    for (const [name, profile] of Object.entries(config.profiles || {})) {
+      if (typeof profile === "object" && profile) profile.default = name === parsedArgs.profile;
+    }
+  }
+
+  if (parsedArgs["route-defaults"]) {
+    for (const item of String(parsedArgs["route-defaults"]).split(",")) {
+      const [key, ...valueParts] = item.split("=");
+      const value = valueParts.join("=").trim();
+      if (!key?.trim() || !value) continue;
+      if (!Object.hasOwn(config.defaults.task_defaults, key.trim())) continue;
+      config.defaults.task_defaults[key.trim()] = value;
+    }
+  }
+}
+
+function suggestCommand(surface, model, modelRecord = {}) {
   if (surface === "ollama") return `ollama run ${model}`;
+  if (surface === "agy") return `agy --model ${JSON.stringify(modelRecord.display_name || model)} --print`;
   if (surface === "codex") return "codex exec";
   if (surface === "claude_code") return "claude";
   if (surface === "opencode") return "opencode run";
@@ -160,21 +189,23 @@ function suggestCommand(surface, model) {
   return surface;
 }
 
-function classifyExecutionMode(surface, model) {
+function classifyExecutionMode(surface, model, modelRecord = {}) {
+  if (modelRecord.execution_mode) return modelRecord.execution_mode;
   if (surface === "ollama") return isOllamaCloudModel(model) ? "cloud_cli" : "local_model";
   return "local_cli";
 }
 
-function classifyCost(model, surface) {
+function classifyCost(model, surface, modelRecord = {}) {
+  if (modelRecord.cost_tier) return modelRecord.cost_tier;
   const lower = `${surface}/${model}`.toLowerCase();
-  if (surface === "ollama" && !isOllamaCloudModel(model)) return "local";
-  if (lower.includes("local") && !isOllamaCloudModel(model)) return "local";
-  if (/opus|flagship|max|pro|long-context|thinking/.test(lower)) return "premium";
+  if (surface === "ollama" && !isOllamaCloudModel(model, modelRecord)) return "local";
+  if (lower.includes("local") && !isOllamaCloudModel(model, modelRecord)) return "local";
+  if (/opus|flagship|max|pro|long-context|thinking|high/.test(lower)) return "premium";
   if (/mini|flash|haiku|small|lite|nano|fast/.test(lower)) return "cheap";
   return "standard";
 }
 
-function suggestStrengths(model, surface) {
+function suggestStrengths(model, surface, modelRecord = {}) {
   const lower = `${surface}/${model}`.toLowerCase();
   const strengths = new Set();
   if (/codex|coder|code|qwen|devstral|codestral|claude|gpt|glm|deepseek/.test(lower)) {
@@ -189,7 +220,7 @@ function suggestStrengths(model, surface) {
     strengths.add("document_analysis");
     strengths.add("multimodal");
   }
-  if ((/ollama|local|gemma|llama|qwen/.test(lower)) && !isOllamaCloudModel(model)) {
+  if ((/ollama|local|gemma|llama|qwen/.test(lower)) && !isOllamaCloudModel(model, modelRecord)) {
     strengths.add("private_context");
     strengths.add("local_work");
   }
@@ -199,20 +230,21 @@ function suggestStrengths(model, surface) {
   return [...strengths].length ? [...strengths] : ["general"];
 }
 
-function isOllamaCloudModel(model) {
+function isOllamaCloudModel(model, modelRecord = {}) {
+  if (modelRecord.execution_mode === "cloud_cli" || modelRecord.remote_model === true) return true;
   return /(^|[:_-])cloud$/i.test(String(model || ""));
 }
 
 function suggestCapabilities(surface, model) {
   const lower = `${surface}/${model}`.toLowerCase();
-  const cliCanEdit = ["codex", "claude_code", "opencode", "cursor", "qwen", "aider"].includes(surface);
+  const cliCanEdit = ["codex", "claude_code", "opencode", "cursor", "qwen", "aider", "agy"].includes(surface);
   return {
     file_edits: cliCanEdit,
     terminal: cliCanEdit,
     worktree_safe: cliCanEdit,
     background: ["github", "gemini_spark"].includes(surface),
     multimodal: /gemini|vision|vl|multimodal|gemma|mistral/.test(lower) ? true : "unknown",
-    web: ["codex", "opencode", "gemini", "github"].includes(surface) ? "unknown" : false,
+    web: ["codex", "opencode", "gemini", "github", "agy"].includes(surface) ? "unknown" : false,
     structured_output: "unknown",
   };
 }

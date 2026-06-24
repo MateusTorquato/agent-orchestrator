@@ -16,6 +16,7 @@ const TOOL_DETECTORS = [
   { id: "claude", command: "claude", surface: "claude_code" },
   { id: "codex", command: "codex", surface: "codex" },
   { id: "opencode", command: "opencode", surface: "opencode" },
+  { id: "agy", command: "agy", surface: "agy" },
   { id: "gemini", command: "gemini", surface: "gemini" },
   { id: "qwen", command: "qwen", surface: "qwen" },
   { id: "ollama", command: "ollama", surface: "ollama" },
@@ -117,11 +118,35 @@ if (inventory.tools.ollama?.installed) {
   surface.ollama_list_ok = ollama.status === 0;
   if (ollama.status === 0) {
     for (const modelName of parseOllamaList(ollama.stdout).sort()) {
+      const metadata = inspectOllamaModel(inventory.tools.ollama.path, modelName);
       surface.detected_models.push({
         provider: "local",
         model: modelName,
         source: "ollama list",
         enabled_in_source: true,
+        ...metadata,
+      });
+    }
+  }
+}
+
+if (inventory.tools.agy?.installed) {
+  const agy = runCommand(inventory.tools.agy.path, ["models"], 10000);
+  const surface = ensureSurface("agy");
+  surface.detected_models = surface.detected_models || [];
+  surface.models_ok = agy.status === 0;
+  if (agy.status === 0) {
+    for (const displayName of parseAgyModels(agy.stdout).sort()) {
+      const parsed = parseAgyModel(displayName);
+      surface.detected_models.push({
+        provider: parsed.provider,
+        model: parsed.slug,
+        display_name: displayName,
+        source: "agy models",
+        enabled_in_source: true,
+        execution_mode: "local_cli",
+        cost_tier: parsed.cost_tier,
+        tier: parsed.tier,
       });
     }
   }
@@ -348,4 +373,38 @@ function parseOllamaList(stdout) {
     .slice(1)
     .map((line) => line.trim().split(/\s+/)[0])
     .filter(Boolean);
+}
+
+function inspectOllamaModel(ollamaPath, modelName) {
+  const show = runCommand(ollamaPath, ["show", modelName], 5000);
+  const text = `${show.stdout}\n${show.stderr}`;
+  const remote = isOllamaNamedCloud(modelName) || /Remote model|Remote URL/i.test(text);
+  return {
+    execution_mode: remote ? "cloud_cli" : "local_model",
+    remote_model: remote,
+    ollama_show_ok: show.status === 0,
+  };
+}
+
+function isOllamaNamedCloud(modelName) {
+  return /(^|[:_-])cloud$/i.test(String(modelName || ""));
+}
+
+function parseAgyModels(stdout) {
+  return stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !/^Usage\b|^Available subcommands:/i.test(line));
+}
+
+function parseAgyModel(displayName) {
+  const tierMatch = displayName.match(/\(([^)]+)\)\s*$/);
+  const tier = tierMatch?.[1] || "Default";
+  const baseName = displayName.replace(/\s*\([^)]+\)\s*$/, "");
+  const provider = inferProvider(baseName);
+  const slug = `${baseName}-${tier}`.toLowerCase().replace(/[^a-z0-9.]+/g, "-").replace(/^-|-$/g, "");
+  const tierLower = tier.toLowerCase();
+  const cost_tier = /high|opus|thinking|pro/.test(`${tierLower} ${baseName.toLowerCase()}`) ? "premium" : tierLower.includes("low") || baseName.toLowerCase().includes("flash") ? "cheap" : "standard";
+  return { provider, slug, tier, cost_tier };
 }

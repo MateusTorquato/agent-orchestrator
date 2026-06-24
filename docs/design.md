@@ -49,6 +49,7 @@ A surface is the product or harness used to run an AI route:
 - Claude Code
 - Codex
 - OpenCode
+- Agy / Antigravity CLI
 - Cursor
 - Kimi
 - Gemini CLI
@@ -162,6 +163,8 @@ Detect both:
 
 - CLI presence and version/help output.
 - Local configuration that reveals configured providers/models.
+- Harness model lists such as `agy models`.
+- Ollama model metadata via `ollama show <model>`, because Ollama can expose remote models without a `:cloud` suffix.
 
 Detection should include as many surfaces as practical. v1 should attempt broad detection, but gracefully mark unknown or unsupported tools.
 
@@ -170,6 +173,7 @@ Examples:
 - `claude`
 - `codex`
 - `opencode`
+- `agy`
 - `gemini`
 - `qwen`
 - `ollama`
@@ -185,6 +189,8 @@ Examples:
 - custom routes added by the user
 
 Detection must redact secrets. It may record that a key exists, but never store the key value.
+
+The same model through a different harness is still a different route. For example, Gemini through Agy/Antigravity, Gemini CLI, and Ollama Remote Model should be represented separately.
 
 ## Cost Policy
 

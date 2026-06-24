@@ -28,8 +28,8 @@ defaults:
     investigation: codex/openai/gpt-5.5
     coding: codex/openai/gpt-5.5
     code_review: codex/openai/gpt-5.5
-    document_analysis: ollama/local/gemini-3-flash-preview:latest
-    local_private: ollama/local/gemini-3-flash-preview:latest
+    document_analysis: agy/google/gemini-3.5-flash-high
+    local_private: codex/openai/gpt-5.5
 
 privacy:
   external_apis_allowed: ask
@@ -155,6 +155,32 @@ routes:
       max_parallel: 2
       max_context: unknown
 
+  agy/google/gemini-3.5-flash-high:
+    enabled: true
+    surface: agy
+    provider: google
+    model: gemini-3.5-flash-high
+    display_name: "Gemini 3.5 Flash (High)"
+    command: "agy --model \"Gemini 3.5 Flash (High)\" --print"
+    execution_mode: local_cli
+    cost_tier: premium
+    strengths:
+      - document_analysis
+      - multimodal
+      - cheap_scout
+    capabilities:
+      file_edits: true
+      terminal: true
+      worktree_safe: true
+      background: false
+      multimodal: true
+      web: unknown
+      structured_output: unknown
+    limits:
+      max_runtime_seconds: 1800
+      max_parallel: 1
+      max_context: unknown
+
 custom_routes:
   my-company/deploy-agent:
     enabled: false
@@ -183,6 +209,7 @@ commands:
     codex: false
     cursor: false
     opencode: false
+    agy: false
     kimi: false
     gemini: false
 ```
