@@ -24,7 +24,7 @@ if (!routes.length) {
 }
 
 const ranked = routes
-  .map((route) => ({ route, score: scoreRoute(route, classification), reasons: routeReasons(route, classification) }))
+  .map((route) => ({ route, score: scoreRoute(route, classification, config), reasons: routeReasons(route, classification, config) }))
   .sort((a, b) => b.score - a.score);
 
 const selected = ranked[0];
@@ -79,9 +79,10 @@ function classifyTask(text) {
   };
 }
 
-function scoreRoute(route, classification) {
+function scoreRoute(route, classification, config) {
   let score = 0;
   const strengths = new Set(route.strengths || []);
+  if (defaultRouteIds(classification, config).includes(route.id)) score += 100;
   if (classification.coding && (strengths.has("coding") || strengths.has("debugging") || route.capabilities?.file_edits)) score += 30;
   if (classification.review && (strengths.has("validation") || strengths.has("code_review") || strengths.has("planning"))) score += 25;
   if (classification.research && (strengths.has("research") || strengths.has("planning") || route.capabilities?.web === true)) score += 20;
@@ -96,8 +97,9 @@ function scoreRoute(route, classification) {
   return score;
 }
 
-function routeReasons(route, classification) {
+function routeReasons(route, classification, config) {
   const reasons = [];
+  if (defaultRouteIds(classification, config).includes(route.id)) reasons.push("configured default for this task type");
   if (classification.sensitive && route.cost_tier === "local") reasons.push("local route for sensitive data");
   if (classification.file_edits && route.capabilities?.file_edits) reasons.push("supports file edits");
   if (classification.coding && route.strengths?.some((item) => ["coding", "debugging"].includes(item))) reasons.push("matches coding/debugging strengths");
@@ -105,6 +107,19 @@ function routeReasons(route, classification) {
   if (route.cost_tier === "cheap") reasons.push("cheap route");
   if (route.cost_tier === "premium") reasons.push("premium quality route");
   return reasons;
+}
+
+function defaultRouteIds(classification, config) {
+  const defaults = config.defaults?.task_defaults || {};
+  const keys = [];
+  if (classification.sensitive) keys.push("local_private");
+  keys.push(classification.type);
+  if (classification.research) keys.push("research");
+  if (classification.coding && !classification.review) keys.push("coding");
+  if (classification.review) keys.push("code_review");
+  if (classification.multimodal) keys.push("document_analysis");
+  keys.push("general");
+  return keys.map((key) => defaults[key]).filter(Boolean);
 }
 
 function needsConfirmation(route, classification) {

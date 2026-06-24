@@ -81,6 +81,7 @@ run("write config dry run", () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /schema_version: 1/);
   assert.match(result.stdout, /initialized_at: "2026-01-01T00:00:00.000Z"/);
+  assert.match(result.stdout, /task_defaults:[\s\S]*general: null[\s\S]*research: null[\s\S]*investigation: null[\s\S]*coding: null[\s\S]*local_private: null/);
   assert.match(result.stdout, /"ollama\/local\/qwen3-coder:latest":/);
   assert.match(result.stdout, /"ollama\/local\/deepseek-v4-pro:cloud":[\s\S]*execution_mode: "cloud_cli"/);
   assert.match(result.stdout, /"ollama\/local\/gpt-oss:120b-cloud":[\s\S]*execution_mode: "cloud_cli"/);
@@ -88,6 +89,24 @@ run("write config dry run", () => {
   assert.doesNotMatch(result.stdout.match(/"ollama\/local\/gpt-oss:120b-cloud":[\s\S]*?(?=\n  "ollama\/|\ncustom_routes:)/)?.[0] || "", /private_context|local_work/);
   assert.match(result.stdout, /enabled: false/);
   fs.writeFileSync(path.join(configDir, "config.yaml"), enableRoutes(result.stdout, ["opencode/openai/gpt-5.5", "ollama/local/qwen3-coder:latest"]));
+});
+
+run("delegate honors configured task defaults", () => {
+  const base = fs.readFileSync(path.join(configDir, "config.yaml"), "utf8");
+  const withDefaults = setTaskDefaults(base, {
+    general: "ollama/local/qwen3-coder:latest",
+    research: "opencode/openai/gpt-5.5",
+    coding: "ollama/local/qwen3-coder:latest",
+    local_private: "ollama/local/qwen3-coder:latest",
+  });
+  const defaultsConfig = path.join(configDir, "defaults.yaml");
+  fs.writeFileSync(defaultsConfig, withDefaults);
+
+  const research = nodeScript("skills/orchestrator-delegate/scripts/route-task.mjs", ["--config", defaultsConfig, "--task", "Research latest approaches and compare sources", "--json"], env);
+  assert.equal(research.status, 0, research.stderr);
+  const researchPlan = JSON.parse(research.stdout);
+  assert.equal(researchPlan.selected_route, "opencode/openai/gpt-5.5");
+  assert.ok(researchPlan.reasons.includes("configured default for this task type"));
 });
 
 run("write config dry-run wins over write", () => {
@@ -298,4 +317,22 @@ function enableOnlyFirstRoute(yaml) {
     count += 1;
     return count === 1 ? "enabled: true" : "enabled: false";
   });
+}
+
+function setTaskDefaults(yaml, defaults) {
+  const lines = yaml.split(/\r?\n/);
+  let inside = false;
+  return lines.map((line) => {
+    if (/^  task_defaults:$/.test(line)) {
+      inside = true;
+      return line;
+    }
+    if (inside && /^  [A-Za-z_]+:/.test(line)) inside = false;
+    if (inside) {
+      for (const [key, value] of Object.entries(defaults)) {
+        if (line.trim() === `${key}: null`) return line.replace(`${key}: null`, `${key}: ${JSON.stringify(value)}`);
+      }
+    }
+    return line;
+  }).join("\n");
 }

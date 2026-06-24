@@ -63,6 +63,15 @@ function buildConfig(inventoryData) {
     defaults: {
       profile: "balanced",
       max_parallel_agents: 4,
+      task_defaults: {
+        general: null,
+        research: null,
+        investigation: null,
+        coding: null,
+        code_review: null,
+        document_analysis: null,
+        local_private: null,
+      },
     },
     privacy: {
       external_apis_allowed: "ask",

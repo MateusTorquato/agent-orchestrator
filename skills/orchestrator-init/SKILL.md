@@ -26,21 +26,32 @@ This skill creates and maintains:
 
 2. Review detected tools, harnesses, configured models, local models, and redactions.
 
-3. Ask the user which detected harness/model routes to enable. When a harness has linked models, list them and ask whether to enable all or selected models.
+3. Prefer doing the interview in Plan mode when the current agent/runtime supports selectable questions. Explain that Plan mode is recommended because the user can pick routes and defaults from options instead of typing YAML by hand. If Plan mode or selectable questions are unavailable, ask concise numbered questions in normal chat.
 
-4. Ask whether to run smoke tests. Smoke tests may consume model credits, so they require explicit confirmation:
+4. Ask the user which detected harness/model routes to enable. When a harness has linked models, list them and ask whether to enable all or selected models.
+
+5. Ask for default routes by task category:
+   - generalist
+   - research
+   - investigation/debugging
+   - coding/implementation
+   - review/validation
+   - document/multimodal
+   - local/private-sensitive work
+
+6. Ask whether to run smoke tests. Smoke tests may consume model credits, so they require explicit confirmation:
    ```bash
    node skills/orchestrator-init/scripts/smoke-test.mjs --confirmed --write
    ```
 
-5. Propose a config:
+7. Propose a config:
    ```bash
    node skills/orchestrator-init/scripts/write-config.mjs --dry-run
    ```
 
-6. Ask before writing `config.yaml` or installing commands/plugins.
+8. Ask before writing `config.yaml` or installing commands/plugins.
 
-7. If the user approves installing Claude slash commands, preview first:
+9. If the user approves installing Claude slash commands, preview first:
    ```bash
    node skills/orchestrator-init/scripts/install-commands.mjs
    ```
@@ -66,9 +77,33 @@ Ask concise questions. Capture:
 - Which linked harness models are allowed.
 - Cost tier corrections.
 - Preferred profile: `balanced`, `cheap`, `best`, `local_only`.
+- Default route for generalist work.
+- Default route for research.
+- Default route for investigation/debugging.
+- Default route for coding/implementation.
+- Default route for review/validation.
+- Default route for document/multimodal tasks.
+- Default route for local/private-sensitive tasks.
 - Privacy policy for code, logs, documents, production data, and personal/customer data.
 - Whether to install harness commands/plugins.
 - Whether to run smoke tests.
+
+### Plan Mode Interview
+
+When selectable questions are available, ask in small batches after detection:
+
+1. **Enabled routes**: let the user select which detected routes should be enabled. Recommended first option: a balanced set with one strong coding route, one cheap scout, one local/private route if available, and one document/multimodal route if available.
+2. **Default generalist route**: ask which enabled route should handle broad tasks.
+3. **Default research route**: ask which route should handle source-heavy research.
+4. **Default investigation route**: ask which route should handle debugging/root-cause analysis.
+5. **Default coding route**: ask which route should implement code changes.
+6. **Default review route**: ask which route should validate plans, PRs, diffs, and results.
+7. **Default document route**: ask which route should handle PDFs, images, OCR, spreadsheets, and multimodal work.
+8. **Default private route**: ask which route should handle secrets, production logs, customer data, contracts, finance, health, HR, or equivalent sensitive terms in the user's language.
+9. **Cost/privacy policy**: confirm profile and paid fan-out behavior.
+10. **Write config**: show the proposed config summary and ask before writing.
+
+Do not ask all questions at once. Use the previous answer to narrow the next options.
 
 ## Config Editing
 

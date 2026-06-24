@@ -22,6 +22,14 @@ initialized_at: "2026-06-24T00:00:00Z"
 defaults:
   profile: balanced
   max_parallel_agents: 4
+  task_defaults:
+    general: codex/openai/gpt-5.5
+    research: codex/openai/gpt-5.5
+    investigation: codex/openai/gpt-5.5
+    coding: codex/openai/gpt-5.5
+    code_review: codex/openai/gpt-5.5
+    document_analysis: ollama/local/gemini-3-flash-preview:latest
+    local_private: ollama/local/gemini-3-flash-preview:latest
 
 privacy:
   external_apis_allowed: ask

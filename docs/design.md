@@ -147,11 +147,14 @@ Multiple independent reviewers evaluate a plan, diff, result, or decision. Use s
 
 1. Run passive environment detection.
 2. Write `inventory.json`.
-3. Interview the user about detected surfaces, models, privacy, cost, and preferences.
-4. Ask whether to run smoke tests, because they may consume model credits.
-5. Update inventory with smoke-test results.
-6. Propose a `config.yaml`.
-7. Ask before writing the config or installing commands/plugins.
+3. Prefer Plan mode or selectable questions for the interview when the runtime supports it.
+4. Interview the user about detected surfaces, models, task defaults, privacy, cost, and preferences.
+5. Ask whether to run smoke tests, because they may consume model credits.
+6. Update inventory with smoke-test results.
+7. Propose a `config.yaml`.
+8. Ask before writing the config or installing commands/plugins.
+
+Task defaults should include at least: generalist, research, investigation, coding, review, document/multimodal, and local/private-sensitive work.
 
 ## Detection Strategy
 
